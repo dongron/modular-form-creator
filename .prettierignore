@@ -1,0 +1,20 @@
+# Dependencies and build output
+node_modules
+dist
+dist-ssr
+storybook-static
+
+# Backend
+backend
+
+# Initial setup, do not touch
+src/design-system/components
+.storybook/main.ts
+.storybook/preview.tsx
+docker-compose.yml
+eslint.config.js
+vite.config.ts
+src/design-system/index.ts
+src/index.css
+tsconfig.json
+vitest.shims.d.ts
