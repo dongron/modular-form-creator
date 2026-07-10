@@ -9,8 +9,9 @@
     "lint": "eslint .",
     "typecheck": "tsc -b",
     "format": "prettier --check .",
-    "check": "eslint . && tsc -b && prettier --check .",
+    "check": "eslint . && tsc -b && prettier --check . && vitest run --project=unit",
     "preview": "vite preview",
+    "test": "vitest run --project=unit",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
@@ -46,6 +47,10 @@
     "vitest": "4.1.6",
     "playwright": "1.60.0",
     "@vitest/browser-playwright": "4.1.6",
-    "@vitest/coverage-v8": "4.1.6"
+    "@vitest/coverage-v8": "4.1.6",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.1",
+    "jsdom": "29.1.1"
   }
 }

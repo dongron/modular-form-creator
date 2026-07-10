@@ -26,4 +26,10 @@ export default defineConfig([globalIgnores(['dist']), {
       { allowExportNames: ['loader', 'action'] },
     ],
   },
+}, {
+  // Test files and test utilities are not part of the Vite fast-refresh graph.
+  files: ['src/**/*.test.{ts,tsx}', 'src/test/**/*.{ts,tsx}'],
+  rules: {
+    'react-refresh/only-export-components': 'off',
+  },
 }, prettier, ...storybook.configs["flat/recommended"]])
