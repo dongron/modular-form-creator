@@ -1,11 +1,12 @@
 import styled from 'styled-components'
 import { NavLink, Outlet, useParams } from 'react-router-dom'
+import { PageShell, Heading } from '../components/PageLayout'
 
 function Resource() {
   const { resourceId } = useParams<{ resourceId: string }>()
 
   return (
-    <PageShell>
+    <PageShell $gap="lg">
       <Heading>Resource “{resourceId}”</Heading>
       <Tabs>
         <Tab to="." end>
@@ -19,21 +20,6 @@ function Resource() {
     </PageShell>
   )
 }
-
-const PageShell = styled.main`
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.lg};
-  padding: ${({ theme }) => theme.spacing.xl};
-`
-
-const Heading = styled.h1`
-  font-family: ${({ theme }) => theme.typography.heading};
-  font-size: 2.5rem;
-  color: ${({ theme }) => theme.colors.inkStrong};
-`
 
 const Tabs = styled.nav`
   display: flex;

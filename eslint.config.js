@@ -20,4 +20,10 @@ export default defineConfig([globalIgnores(['dist']), {
   languageOptions: {
     globals: globals.browser,
   },
+  rules: {
+    'react-refresh/only-export-components': [
+      'error',
+      { allowExportNames: ['loader', 'action'] },
+    ],
+  },
 }, prettier, ...storybook.configs["flat/recommended"]])
