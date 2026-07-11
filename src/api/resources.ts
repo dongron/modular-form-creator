@@ -63,6 +63,16 @@ export async function fetchResources(
   return res.json() as Promise<ResourcePage>
 }
 
+export async function fetchResource(resourceId: string | number): Promise<Resource> {
+  const res = await fetch(`${API_URL}/${resourceId}`)
+  if (!res.ok) {
+    throw new Response(`Failed to load resource (${res.status})`, {
+      status: res.status,
+    })
+  }
+  return res.json() as Promise<Resource>
+}
+
 export async function deleteResource(resourceId: number): Promise<void> {
   const res = await fetch(`${API_URL}/${resourceId}`, { method: 'DELETE' })
   if (!res.ok) {

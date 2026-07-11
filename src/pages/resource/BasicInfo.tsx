@@ -1,14 +1,38 @@
-import { useParams } from 'react-router-dom'
-import { PageShell, Heading, Lead } from '../components/PageLayout'
+import { useOutletContext } from 'react-router-dom'
+import type { Resource } from '../../api/resources'
+import { Input } from '../../design-system'
+import { FieldWrapper } from '../components/PageLayout'
 
 function BasicInfo() {
-  const { resourceId } = useParams<{ resourceId: string }>()
+  const { basicInfo } = useOutletContext<Resource>()
 
   return (
-    <PageShell $centered>
-      <Heading>Basic info</Heading>
-      <Lead>Basic info for resource “{resourceId}”.</Lead>
-    </PageShell>
+    <>
+      <FieldWrapper>
+        <Input
+          label="Resource name"
+          defaultValue={basicInfo.resourceName}
+          state="locked"
+        />
+      </FieldWrapper>
+      <FieldWrapper>
+        <Input label="Owner" defaultValue={basicInfo.owner} state="locked" />
+      </FieldWrapper>
+      <FieldWrapper>
+        <Input label="Email" type="email" defaultValue={basicInfo.email} state="locked" />
+      </FieldWrapper>
+      <FieldWrapper>
+        <Input
+          label="Description"
+          defaultValue={basicInfo.description}
+          multiline
+          state="locked"
+        />
+      </FieldWrapper>
+      <FieldWrapper>
+        <Input label="Priority" defaultValue={basicInfo.priority} state="locked" />
+      </FieldWrapper>
+    </>
   )
 }
 

@@ -17,6 +17,14 @@ export const HeaderCopy = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
 `
 
+export const FieldWrapper = styled.div`
+  width: ${CONTENT_WIDTH};
+
+  > * {
+    width: 100%;
+  }
+`
+
 export const PageShell = styled.main<{
   $centered?: boolean
   $gap?: keyof Theme['spacing']

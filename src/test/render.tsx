@@ -5,6 +5,8 @@ import type { ActionFunction, LoaderFunction } from 'react-router-dom'
 import { ThemeProvider } from 'styled-components'
 import { theme } from '../design-system/theme/theme'
 
+const HydrateFallback = () => null
+
 function ThemeWrapper({ children }: { children: ReactNode }) {
   return <ThemeProvider theme={theme}>{children}</ThemeProvider>
 }
@@ -17,10 +19,13 @@ export function renderWithTheme(
   return render(ui, { wrapper: ThemeWrapper, ...options })
 }
 
+type StubRouteObject = Parameters<typeof createRoutesStub>[0][number]
+
 type RouterStubOptions = {
   path?: string
   action?: ActionFunction
   loader?: LoaderFunction
+  children?: StubRouteObject[]
   initialEntries?: string[]
 }
 
@@ -28,7 +33,13 @@ type RouterStubOptions = {
 // useActionData, useNavigation, Link) work, wrapped in the styled-components theme.
 export function renderWithRouter(
   ui: ReactElement,
-  { path = '/', action, loader, initialEntries = [path] }: RouterStubOptions = {},
+  {
+    path = '/',
+    action,
+    loader,
+    children,
+    initialEntries = [path],
+  }: RouterStubOptions = {},
 ) {
   const Stub = createRoutesStub([
     {
@@ -36,6 +47,9 @@ export function renderWithRouter(
       Component: () => ui,
       action,
       loader,
+      children,
+      // Route stubs treat loader tests as initial hydration until data resolves.
+      HydrateFallback: loader ? HydrateFallback : undefined,
     },
   ])
 

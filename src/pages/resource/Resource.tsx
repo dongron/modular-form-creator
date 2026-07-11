@@ -1,9 +1,25 @@
 import styled from 'styled-components'
-import { NavLink, Outlet, useParams } from 'react-router-dom'
+import {
+  NavLink,
+  Outlet,
+  useLoaderData,
+  useParams,
+  type LoaderFunctionArgs,
+} from 'react-router-dom'
+import { fetchResource } from '../../api/resources'
 import { PageShell, Heading } from '../components/PageLayout'
+
+export async function loader({ params }: LoaderFunctionArgs) {
+  if (!params.resourceId) {
+    throw new Response('Resource ID is required', { status: 400 })
+  }
+
+  return fetchResource(params.resourceId)
+}
 
 function Resource() {
   const { resourceId } = useParams<{ resourceId: string }>()
+  const resource = useLoaderData<typeof loader>()
 
   return (
     <PageShell $gap="lg">
@@ -16,7 +32,7 @@ function Resource() {
         <Tab to="project-details">Project details</Tab>
         <Tab to="details">Details</Tab>
       </Tabs>
-      <Outlet />
+      <Outlet context={resource} />
     </PageShell>
   )
 }

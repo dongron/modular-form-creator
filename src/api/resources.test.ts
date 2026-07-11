@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createResource, ResourceValidationError, type Resource } from './resources'
+import {
+  createResource,
+  fetchResource,
+  ResourceValidationError,
+  type Resource,
+} from './resources'
 
 const createdResource: Resource = {
   _id: 'resource-object-id',
@@ -76,4 +81,28 @@ describe('createResource', () => {
       { status: 500 },
     )
   })
+})
+
+describe('fetchResource', () => {
+  it('gets one resource by ID and returns it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(createdResource), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchResource(7)).resolves.toEqual(createdResource)
+    expect(fetchMock).toHaveBeenCalledWith('/api/resources/7')
+  })
+
+  it.each([400, 404])(
+    'throws a route response when the API returns %i',
+    async (status) => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status })))
+
+      await expect(fetchResource(7)).rejects.toMatchObject({ status })
+    },
+  )
 })

@@ -5,7 +5,7 @@ import Resources, {
   action as resourcesAction,
   loader as resourcesLoader,
 } from './pages/Resources'
-import Resource from './pages/resource/Resource'
+import Resource, { loader as resourceLoader } from './pages/resource/Resource'
 import ResourceIndex from './pages/resource/ResourceIndex'
 import BasicInfo from './pages/resource/BasicInfo'
 import ProjectDetails from './pages/resource/ProjectDetails'
@@ -25,6 +25,7 @@ const router = createBrowserRouter([
       {
         path: '/resources/:resourceId',
         element: <Resource />,
+        loader: resourceLoader,
         children: [
           { index: true, element: <ResourceIndex /> },
           { path: 'basic-info', element: <BasicInfo /> },

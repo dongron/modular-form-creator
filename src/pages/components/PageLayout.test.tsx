@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react'
 import { renderWithTheme } from '../../test/render'
 import {
   CONTENT_WIDTH,
+  FieldWrapper,
   HeaderCopy,
   Heading,
   Lead,
@@ -28,6 +29,17 @@ describe('PageLayout primitives', () => {
 
   it('exposes a content width token', () => {
     expect(CONTENT_WIDTH).toBe('min(48rem, 100%)')
+  })
+
+  it('renders a shared wrapper for a form field', () => {
+    renderWithTheme(
+      <FieldWrapper>
+        <input aria-label="Resource name" />
+      </FieldWrapper>,
+    )
+
+    expect(screen.getByLabelText('Resource name')).toBeInTheDocument()
+    expect(screen.getByLabelText('Resource name')).toHaveStyle({ width: '100%' })
   })
 
   it('renders page header content and actions', () => {
