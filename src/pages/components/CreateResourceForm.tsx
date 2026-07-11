@@ -1,45 +1,48 @@
-import { useEffect, useRef } from 'react'
-import { Form, useActionData, useNavigation } from 'react-router-dom'
+import type { Ref } from 'react'
+import type { FetcherWithComponents } from 'react-router-dom'
 import styled from 'styled-components'
 import { Button, Input } from '../../design-system'
-import { type ResourcesActionData } from '../Resources'
 
-// in progress, direct useActionData, useNavigation will be removed from here
-function CreateResourceForm() {
-  const actionData = useActionData() as ResourcesActionData | undefined
-  const navigation = useNavigation()
-  const formRef = useRef<HTMLFormElement>(null)
+type CreateResourceFormProps = {
+  createFetcher: Pick<FetcherWithComponents<unknown>, 'Form'>
+  formRef: Ref<HTMLFormElement>
+  error?: string
+  isSubmitting?: boolean
+}
 
-  const isSubmitting = navigation.state === 'submitting'
-
-  useEffect(() => {
-    if (actionData?.ok && navigation.state === 'idle') {
-      formRef.current?.reset()
-    }
-  }, [actionData, navigation.state])
-
+function CreateResourceForm({
+  createFetcher,
+  formRef,
+  error,
+  isSubmitting = false,
+}: CreateResourceFormProps) {
   return (
-    <CreateForm method="post" ref={formRef}>
-      <input type="hidden" name="intent" value="create" />
-      <Input
-        name="resourceName"
-        label="New resource"
-        placeholder="Resource name"
-        error={actionData?.error ?? undefined}
-        state={isSubmitting ? 'disabled' : 'normal'}
-      />
-      <Button type="submit" state={isSubmitting ? 'disabled' : 'normal'}>
-        {isSubmitting ? 'Adding…' : 'Add resource'}
-      </Button>
-    </CreateForm>
+    <createFetcher.Form method="post" ref={formRef}>
+      <FormFields>
+        <input type="hidden" name="intent" value="create" />
+        <Input
+          name="resourceName"
+          label="Resource name"
+          placeholder="Enter resource name"
+          helperText="Resource names cannot be changed after creation."
+          error={error}
+          maxLength={255}
+          required
+          state={isSubmitting ? 'disabled' : 'normal'}
+        />
+        <Button type="submit" fullWidth state={isSubmitting ? 'disabled' : 'normal'}>
+          {isSubmitting ? 'Creating…' : 'Create Resource'}
+        </Button>
+      </FormFields>
+    </createFetcher.Form>
   )
 }
 
-const CreateForm = styled(Form)`
+const FormFields = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.sm};
-  width: min(28rem, 100%);
+  gap: ${({ theme }) => theme.spacing.md};
+  width: 100%;
 `
 
 export default CreateResourceForm

@@ -40,6 +40,13 @@ export type ResourceFilters = {
   sortOrder?: 'asc' | 'desc'
 }
 
+export class ResourceValidationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ResourceValidationError'
+  }
+}
+
 export async function fetchResources(
   filters: ResourceFilters = {},
 ): Promise<ResourcePage> {
@@ -71,6 +78,26 @@ export async function createResource(data: { resourceName: string }): Promise<Re
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
+  if (res.status === 400) {
+    let message = 'Resource name is invalid'
+
+    try {
+      const body: unknown = await res.json()
+      if (
+        typeof body === 'object' &&
+        body !== null &&
+        'message' in body &&
+        typeof body.message === 'string'
+      ) {
+        message = body.message
+      }
+    } catch {
+      // Keep the safe fallback when the API returns an invalid validation body.
+    }
+
+    throw new ResourceValidationError(message)
+  }
+
   if (!res.ok) {
     throw new Response(`Failed to create resource (${res.status})`, {
       status: res.status,

@@ -3,6 +3,20 @@ import { type Theme } from '../../design-system/theme/theme'
 
 export const CONTENT_WIDTH = 'min(48rem, 100%)'
 
+export const PageHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.md};
+  width: ${CONTENT_WIDTH};
+`
+
+export const HeaderCopy = styled.div`
+  display: grid;
+  gap: ${({ theme }) => theme.spacing.sm};
+`
+
 export const PageShell = styled.main<{
   $centered?: boolean
   $gap?: keyof Theme['spacing']

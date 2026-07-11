@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
+  useFetcher,
   useLoaderData,
   useSearchParams,
   useSubmit,
@@ -7,13 +8,26 @@ import {
   type LoaderFunctionArgs,
 } from 'react-router-dom'
 import styled from 'styled-components'
-import { createResource, deleteResource, fetchResources } from '../api/resources'
+import {
+  createResource,
+  deleteResource,
+  fetchResources,
+  ResourceValidationError,
+} from '../api/resources'
+import { Button, Drawer } from '../design-system'
 import { parseResourceFilters } from '../utils/resourceFilters'
 import ResourceListItem from './components/ResourceListItem'
 import ResourceFilters from './components/ResourceFilters'
 import Pagination from './components/Pagination'
 import CreateResourceForm from './components/CreateResourceForm'
-import { PageShell, Heading, Lead, CONTENT_WIDTH } from './components/PageLayout'
+import {
+  PageShell,
+  PageHeader,
+  HeaderCopy,
+  Heading,
+  Lead,
+  CONTENT_WIDTH,
+} from './components/PageLayout'
 
 export type ResourcesActionData = { ok: boolean; error: string | null }
 
@@ -36,15 +50,29 @@ export async function action({ request }: ActionFunctionArgs) {
     return { ok: false as const, error: 'Resource name is required' }
   }
 
-  await createResource({ resourceName })
+  try {
+    await createResource({ resourceName })
+  } catch (error) {
+    if (error instanceof ResourceValidationError) {
+      return { ok: false as const, error: error.message }
+    }
+    throw error
+  }
+
   return { ok: true as const, error: null }
 }
 
 function Resources() {
   const { items, pagination } = useLoaderData<typeof loader>()
   const [searchParams, setSearchParams] = useSearchParams()
+  const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false)
+  // used only for onChange in debounced search
   const submit = useSubmit()
+  const createFetcher = useFetcher<ResourcesActionData>()
+  const createFormRef = useRef<HTMLFormElement>(null)
+  const previousCreateStateRef = useRef(createFetcher.state)
   const lastPageRef = useRef(pagination.page)
+  const isCreating = createFetcher.state !== 'idle'
 
   useEffect(() => {
     if (lastPageRef.current !== pagination.page) {
@@ -53,10 +81,29 @@ function Resources() {
     }
   }, [pagination.page])
 
+  useEffect(() => {
+    const hasFinished =
+      previousCreateStateRef.current !== 'idle' && createFetcher.state === 'idle'
+
+    previousCreateStateRef.current = createFetcher.state
+
+    if (hasFinished && createFetcher.data?.ok) {
+      createFormRef.current?.reset()
+      setIsCreateDrawerOpen(false)
+    }
+  }, [createFetcher.data, createFetcher.state])
+
   return (
     <PageShell>
-      <Heading>Resources</Heading>
-      <Lead>Helpful links and materials will live here.</Lead>
+      <PageHeader>
+        <HeaderCopy>
+          <Heading>Resources</Heading>
+          <Lead>Helpful links and materials will live here.</Lead>
+        </HeaderCopy>
+        <Button type="button" onClick={() => setIsCreateDrawerOpen(true)}>
+          Create Resource
+        </Button>
+      </PageHeader>
 
       <ResourceFilters
         searchParams={searchParams}
@@ -76,7 +123,18 @@ function Resources() {
 
       <Pagination pagination={pagination} searchParams={searchParams} />
 
-      <CreateResourceForm />
+      <Drawer
+        title="Create Resource"
+        isOpen={isCreateDrawerOpen}
+        onClose={() => setIsCreateDrawerOpen(false)}
+      >
+        <CreateResourceForm
+          createFetcher={createFetcher}
+          formRef={createFormRef}
+          error={createFetcher.data?.error ?? undefined}
+          isSubmitting={isCreating}
+        />
+      </Drawer>
     </PageShell>
   )
 }
