@@ -1,13 +1,7 @@
 import styled from 'styled-components'
-import {
-  NavLink,
-  Outlet,
-  useLoaderData,
-  useParams,
-  type LoaderFunctionArgs,
-} from 'react-router-dom'
+import { NavLink, Outlet, useLoaderData, type LoaderFunctionArgs } from 'react-router-dom'
 import { fetchResource } from '../../api/resources'
-import { PageShell, Heading } from '../components/PageLayout'
+import { CONTENT_WIDTH, PageShell, Heading } from '../components/PageLayout'
 
 export async function loader({ params }: LoaderFunctionArgs) {
   if (!params.resourceId) {
@@ -18,19 +12,18 @@ export async function loader({ params }: LoaderFunctionArgs) {
 }
 
 function Resource() {
-  const { resourceId } = useParams<{ resourceId: string }>()
   const resource = useLoaderData<typeof loader>()
 
   return (
     <PageShell $gap="lg">
-      <Heading>Resource “{resourceId}”</Heading>
+      <Heading>Resource “{resource.name}”</Heading>
       <Tabs>
         <Tab to="." end>
           Overview
         </Tab>
-        <Tab to="basic-info">Basic info</Tab>
-        <Tab to="project-details">Project details</Tab>
         <Tab to="details">Details</Tab>
+        <Tab to="basic-info">Edit basic info</Tab>
+        <Tab to="project-details">Edit project details</Tab>
       </Tabs>
       <Outlet context={resource} />
     </PageShell>
@@ -38,7 +31,9 @@ function Resource() {
 }
 
 const Tabs = styled.nav`
+  width: ${CONTENT_WIDTH};
   display: flex;
+  flex-wrap: wrap;
   gap: ${({ theme }) => theme.spacing.md};
 `
 
