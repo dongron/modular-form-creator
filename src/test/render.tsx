@@ -1,4 +1,4 @@
-import { type ReactElement, type ReactNode } from 'react'
+import { type ComponentType, type ReactElement, type ReactNode } from 'react'
 import { render, type RenderOptions } from '@testing-library/react'
 import { createRoutesStub } from 'react-router-dom'
 import type { ActionFunction, LoaderFunction } from 'react-router-dom'
@@ -27,6 +27,7 @@ type RouterStubOptions = {
   loader?: LoaderFunction
   children?: StubRouteObject[]
   initialEntries?: string[]
+  ErrorBoundary?: ComponentType
 }
 
 // Renders `ui` inside a React Router stub so router hooks (Form, useFetcher,
@@ -39,6 +40,7 @@ export function renderWithRouter(
     loader,
     children,
     initialEntries = [path],
+    ErrorBoundary,
   }: RouterStubOptions = {},
 ) {
   const Stub = createRoutesStub([
@@ -48,6 +50,7 @@ export function renderWithRouter(
       action,
       loader,
       children,
+      ErrorBoundary,
       // Route stubs treat loader tests as initial hydration until data resolves.
       HydrateFallback: loader ? HydrateFallback : undefined,
     },

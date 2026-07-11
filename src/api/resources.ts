@@ -82,6 +82,18 @@ export async function deleteResource(resourceId: number): Promise<void> {
   }
 }
 
+export async function provisionResource(resourceId: string | number): Promise<Resource> {
+  const res = await fetch(`${API_URL}/${resourceId}/provisioning`, {
+    method: 'PATCH',
+  })
+  if (!res.ok) {
+    throw new Response(`Failed to provision resource (${res.status})`, {
+      status: res.status,
+    })
+  }
+  return res.json() as Promise<Resource>
+}
+
 export async function createResource(data: { resourceName: string }): Promise<Resource> {
   const res = await fetch(API_URL, {
     method: 'POST',

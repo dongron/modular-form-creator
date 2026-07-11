@@ -1,15 +1,104 @@
-import { useParams } from 'react-router-dom'
-import { PageShell, Heading, Lead } from '../components/PageLayout'
+import {
+  redirect,
+  useFetcher,
+  useOutletContext,
+  type ActionFunctionArgs,
+} from 'react-router-dom'
+import styled from 'styled-components'
+import { deleteResource, provisionResource, type Resource } from '../../api/resources'
+import {
+  isBasicInfoComplete,
+  isProjectDetailsComplete,
+} from '../../utils/resourceCompletion'
+import { Badge, Button, type BadgeVariant } from '../../design-system'
+import ResourceSummaryCards from '../components/ResourceSummaryCards'
+import { CONTENT_WIDTH } from '../components/PageLayout'
+
+const statusVariant: Record<string, BadgeVariant> = {
+  draft: 'neutral',
+  completed: 'success',
+}
+
+export async function action({ request, params }: ActionFunctionArgs) {
+  const formData = await request.formData()
+  const intent = formData.get('intent')
+
+  if (intent === 'delete') {
+    await deleteResource(Number(params.resourceId))
+    return redirect('/resources')
+  }
+
+  if (intent === 'provision') {
+    await provisionResource(params.resourceId ?? '')
+    return { ok: true as const }
+  }
+
+  throw new Response('Unsupported intent', { status: 400 })
+}
 
 function ResourceIndex() {
-  const { resourceId } = useParams<{ resourceId: string }>()
+  const resource = useOutletContext<Resource>()
+  const fetcher = useFetcher()
+
+  const basicDone = isBasicInfoComplete(resource.basicInfo)
+  const projectDone = isProjectDetailsComplete(resource.projectDetails)
+  const completeCount = Number(basicDone) + Number(projectDone)
+  const isCompleted = resource.status === 'completed'
+  const isBusy = fetcher.state !== 'idle'
+  const canProvision = !isCompleted && basicDone && projectDone
 
   return (
-    <PageShell $centered>
-      <Heading>Overview</Heading>
-      <Lead>Overview for resource “{resourceId}”.</Lead>
-    </PageShell>
+    <>
+      <SummaryStatus>
+        <Badge variant={statusVariant[resource.status] ?? 'neutral'}>
+          {resource.status}
+        </Badge>
+        <CompletionText>{completeCount} of 2 modules complete</CompletionText>
+      </SummaryStatus>
+      <ResourceSummaryCards resource={resource} />
+      <Actions>
+        <fetcher.Form method="post">
+          <input type="hidden" name="intent" value="provision" />
+          <Button
+            type="submit"
+            variant="primary"
+            state={canProvision && !isBusy ? 'normal' : 'disabled'}
+          >
+            {isCompleted ? 'Resource completed' : 'Mark as complete'}
+          </Button>
+        </fetcher.Form>
+        <fetcher.Form method="post">
+          <input type="hidden" name="intent" value="delete" />
+          <Button
+            type="submit"
+            variant="secondary"
+            state={isBusy ? 'disabled' : 'normal'}
+          >
+            Delete
+          </Button>
+        </fetcher.Form>
+      </Actions>
+    </>
   )
 }
+
+const SummaryStatus = styled.div`
+  width: ${CONTENT_WIDTH};
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+`
+
+const CompletionText = styled.span`
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.inkMuted};
+`
+
+const Actions = styled.div`
+  width: ${CONTENT_WIDTH};
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.md};
+`
 
 export default ResourceIndex
