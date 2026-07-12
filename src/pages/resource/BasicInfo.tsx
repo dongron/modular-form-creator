@@ -52,6 +52,14 @@ function BasicInfo() {
     : fetcher.state !== 'idle'
   const error = isCompleted ? completedChangesError : fetcher.data?.error
   const fieldState = isSubmitting ? 'disabled' : 'normal'
+  const fieldValueProps = (field: 'owner' | 'email' | 'description' | 'priority') =>
+    isCompleted
+      ? {
+          value: basicInfo[field],
+          onChange: (event: { currentTarget: { value: string } }) =>
+            updateCompletedBasicInfo({ [field]: event.currentTarget.value }),
+        }
+      : { defaultValue: basicInfo[field] }
 
   return (
     <FormShell>
@@ -79,14 +87,7 @@ function BasicInfo() {
             <Input
               name="owner"
               label="Owner"
-              defaultValue={isCompleted ? undefined : basicInfo.owner}
-              value={isCompleted ? basicInfo.owner : undefined}
-              onChange={
-                isCompleted
-                  ? (event) =>
-                      updateCompletedBasicInfo({ owner: event.currentTarget.value })
-                  : undefined
-              }
+              {...fieldValueProps('owner')}
               maxLength={255}
               required
               state={fieldState}
@@ -97,14 +98,7 @@ function BasicInfo() {
               name="email"
               label="Email"
               type="email"
-              defaultValue={isCompleted ? undefined : basicInfo.email}
-              value={isCompleted ? basicInfo.email : undefined}
-              onChange={
-                isCompleted
-                  ? (event) =>
-                      updateCompletedBasicInfo({ email: event.currentTarget.value })
-                  : undefined
-              }
+              {...fieldValueProps('email')}
               required
               state={fieldState}
             />
@@ -113,14 +107,7 @@ function BasicInfo() {
             <Input
               name="description"
               label="Description"
-              defaultValue={isCompleted ? undefined : basicInfo.description}
-              value={isCompleted ? basicInfo.description : undefined}
-              onChange={
-                isCompleted
-                  ? (event) =>
-                      updateCompletedBasicInfo({ description: event.currentTarget.value })
-                  : undefined
-              }
+              {...fieldValueProps('description')}
               multiline
               maxLength={1000}
               required
@@ -131,14 +118,7 @@ function BasicInfo() {
             <Select
               name="priority"
               label="Priority"
-              defaultValue={isCompleted ? undefined : basicInfo.priority}
-              value={isCompleted ? basicInfo.priority : undefined}
-              onChange={
-                isCompleted
-                  ? (event) =>
-                      updateCompletedBasicInfo({ priority: event.currentTarget.value })
-                  : undefined
-              }
+              {...fieldValueProps('priority')}
               options={PRIORITY_OPTIONS}
               required
               state={fieldState}

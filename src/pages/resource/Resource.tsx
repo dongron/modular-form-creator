@@ -102,15 +102,12 @@ function Resource() {
       : null
   const hasCompletedEdits = resource.status === 'completed' && currentDraft !== null
   const displayedResource = currentDraft
-    ? {
-        ...resource,
-        ...currentDraft.payload,
-        basicInfo: currentDraft.payload.basicInfo,
-        projectDetails: currentDraft.payload.projectDetails,
-      }
+    ? { ...resource, ...currentDraft.payload }
     : resource
 
-  const updateCompletedBasicInfo = (patch: Partial<BasicInfoPayload>) => {
+  const mergeCompletedDraft = (
+    merge: (payload: FullUpdatePayload) => FullUpdatePayload,
+  ) => {
     setCompletedDraft((current) => {
       const canReuseDraft =
         current?.resourceKey === resource._id && current.version > lastSavedDraftVersion
@@ -119,30 +116,22 @@ function Resource() {
       return {
         resourceKey: resource._id,
         version: current?.resourceKey === resource._id ? current.version + 1 : 1,
-        payload: {
-          ...payload,
-          basicInfo: { ...payload.basicInfo, ...patch },
-        },
+        payload: merge(payload),
       }
     })
   }
 
-  const updateCompletedProjectDetails = (patch: Partial<ProjectDetailsPayload>) => {
-    setCompletedDraft((current) => {
-      const canReuseDraft =
-        current?.resourceKey === resource._id && current.version > lastSavedDraftVersion
-      const payload = canReuseDraft ? current.payload : createFullUpdatePayload(resource)
+  const updateCompletedBasicInfo = (patch: Partial<BasicInfoPayload>) =>
+    mergeCompletedDraft((payload) => ({
+      ...payload,
+      basicInfo: { ...payload.basicInfo, ...patch },
+    }))
 
-      return {
-        resourceKey: resource._id,
-        version: current?.resourceKey === resource._id ? current.version + 1 : 1,
-        payload: {
-          ...payload,
-          projectDetails: { ...payload.projectDetails, ...patch },
-        },
-      }
-    })
-  }
+  const updateCompletedProjectDetails = (patch: Partial<ProjectDetailsPayload>) =>
+    mergeCompletedDraft((payload) => ({
+      ...payload,
+      projectDetails: { ...payload.projectDetails, ...patch },
+    }))
 
   const submitCompletedChanges = () => {
     if (!resourceId) return

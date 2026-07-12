@@ -57,6 +57,14 @@ function ProjectDetails() {
   const fieldState = isLocked ? 'locked' : isSubmitting ? 'disabled' : 'normal'
   const [options, setOptions] = useState<string[]>(projectDetails.options)
   const selectedOptions = isCompleted ? projectDetails.options : options
+  const fieldValueProps = (field: 'projectName' | 'budget' | 'category') =>
+    isCompleted
+      ? {
+          value: projectDetails[field],
+          onChange: (event: { currentTarget: { value: string } }) =>
+            updateCompletedProjectDetails({ [field]: event.currentTarget.value }),
+        }
+      : { defaultValue: projectDetails[field] }
 
   return (
     <FormShell>
@@ -77,16 +85,7 @@ function ProjectDetails() {
             <Input
               name="projectName"
               label="Project name"
-              defaultValue={isCompleted ? undefined : projectDetails.projectName}
-              value={isCompleted ? projectDetails.projectName : undefined}
-              onChange={
-                isCompleted
-                  ? (event) =>
-                      updateCompletedProjectDetails({
-                        projectName: event.currentTarget.value,
-                      })
-                  : undefined
-              }
+              {...fieldValueProps('projectName')}
               maxLength={255}
               required
               state={fieldState}
@@ -96,14 +95,7 @@ function ProjectDetails() {
             <Input
               name="budget"
               label="Budget"
-              defaultValue={isCompleted ? undefined : projectDetails.budget}
-              value={isCompleted ? projectDetails.budget : undefined}
-              onChange={
-                isCompleted
-                  ? (event) =>
-                      updateCompletedProjectDetails({ budget: event.currentTarget.value })
-                  : undefined
-              }
+              {...fieldValueProps('budget')}
               required
               state={fieldState}
             />
@@ -112,16 +104,7 @@ function ProjectDetails() {
             <Select
               name="category"
               label="Category"
-              defaultValue={isCompleted ? undefined : projectDetails.category}
-              value={isCompleted ? projectDetails.category : undefined}
-              onChange={
-                isCompleted
-                  ? (event) =>
-                      updateCompletedProjectDetails({
-                        category: event.currentTarget.value,
-                      })
-                  : undefined
-              }
+              {...fieldValueProps('category')}
               options={CATEGORY_OPTIONS}
               required
               state={fieldState}
