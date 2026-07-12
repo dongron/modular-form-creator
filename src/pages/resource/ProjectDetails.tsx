@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useFetcher, useOutletContext, type ActionFunctionArgs } from 'react-router-dom'
 import styled from 'styled-components'
 import {
+  fetchResource,
   updateProjectDetails,
+  updateResource,
   ResourceValidationError,
   type ProjectDetailsPayload,
   type Resource,
@@ -24,7 +26,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   try {
-    await updateProjectDetails(params.resourceId ?? '', payload)
+    if (formData.get('intent') === 'full-update') {
+      const current = await fetchResource(params.resourceId ?? '')
+      await updateResource(params.resourceId ?? '', {
+        name: current.name,
+        basicInfo: current.basicInfo,
+        projectDetails: payload,
+      })
+    } else {
+      await updateProjectDetails(params.resourceId ?? '', payload)
+    }
   } catch (error) {
     if (error instanceof ResourceValidationError) {
       return { ok: false as const, error: error.message }
@@ -43,16 +54,22 @@ function ProjectDetails() {
   const isCompleted = resource.status === 'completed'
   const isSubmitting = fetcher.state !== 'idle'
   const isBasicInfoIncomplete = !isCompleted && !isBasicInfoComplete(resource.basicInfo)
-  const isLocked = isCompleted || isBasicInfoIncomplete
+  const isLocked = isBasicInfoIncomplete
   const fieldState = isLocked ? 'locked' : isSubmitting ? 'disabled' : 'normal'
   const [options, setOptions] = useState<string[]>(projectDetails.options)
+  const [isDirty, setIsDirty] = useState(false)
 
   return (
     <FormShell>
       {/* Remount the form when a save changes updatedAt so uncontrolled inputs
           pick up the server-trimmed values from the revalidated loader data. */}
-      <fetcher.Form method="post" key={resource.updatedAt}>
+      <fetcher.Form
+        method="post"
+        key={resource.updatedAt}
+        onChange={() => setIsDirty(true)}
+      >
         <FormFields>
+          {isCompleted ? <input type="hidden" name="intent" value="full-update" /> : null}
           <FieldWrapper>
             <Input
               name="projectName"
@@ -97,7 +114,13 @@ function ProjectDetails() {
           <FieldWrapper>
             {error ? <ErrorText role="alert">{error}</ErrorText> : null}
             {isCompleted ? (
-              <Lead>Completed resources can no longer be edited here.</Lead>
+              <Lead>
+                This resource is completed. Changes are kept locally until you submit
+                them.
+              </Lead>
+            ) : null}
+            {isCompleted && isDirty ? (
+              <Lead>You have unsaved local changes - they are lost on refresh.</Lead>
             ) : null}
             {isBasicInfoIncomplete ? (
               <Lead>
@@ -109,7 +132,7 @@ function ProjectDetails() {
               variant="primary"
               state={isLocked || isSubmitting ? 'disabled' : 'normal'}
             >
-              {isSubmitting ? 'Saving…' : 'Save changes'}
+              {isSubmitting ? 'Saving…' : isCompleted ? 'Submit changes' : 'Save changes'}
             </Button>
           </FieldWrapper>
         </FormFields>

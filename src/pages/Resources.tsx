@@ -98,7 +98,7 @@ function Resources() {
       <PageHeader>
         <HeaderCopy>
           <Heading>Resources</Heading>
-          <Lead>Helpful links and materials will live here.</Lead>
+          <Lead>Create, track and complete resources through the module workflow.</Lead>
         </HeaderCopy>
         <Button type="button" onClick={() => setIsCreateDrawerOpen(true)}>
           Create Resource

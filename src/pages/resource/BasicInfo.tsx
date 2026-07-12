@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { useFetcher, useOutletContext, type ActionFunctionArgs } from 'react-router-dom'
 import styled from 'styled-components'
 import {
+  fetchResource,
   updateBasicInfo,
+  updateResource,
   ResourceValidationError,
   type BasicInfoPayload,
   type Resource,
@@ -22,7 +25,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   try {
-    await updateBasicInfo(params.resourceId ?? '', payload)
+    if (formData.get('intent') === 'full-update') {
+      const current = await fetchResource(params.resourceId ?? '')
+      await updateResource(params.resourceId ?? '', {
+        name: current.name,
+        basicInfo: { ...payload, resourceName: current.basicInfo.resourceName },
+        projectDetails: current.projectDetails,
+      })
+    } else {
+      await updateBasicInfo(params.resourceId ?? '', payload)
+    }
   } catch (error) {
     if (error instanceof ResourceValidationError) {
       return { ok: false as const, error: error.message }
@@ -47,15 +59,20 @@ function BasicInfo() {
   const error = fetcher.data?.error
   const isCompleted = resource.status === 'completed'
   const isSubmitting = fetcher.state !== 'idle'
-  const fieldState = isCompleted ? 'locked' : isSubmitting ? 'disabled' : 'normal'
+  const fieldState = isSubmitting ? 'disabled' : 'normal'
+  // I am usually using react-hook-form for this kind of form, but I wanted to keep it simple and minimal here
+  const [isDirty, setIsDirty] = useState(false)
 
   return (
     <FormShell>
-      {/* Remount the form when a save changes updatedAt so uncontrolled inputs
-          pick up the server-trimmed values from the revalidated loader data. */}
-      <fetcher.Form method="post" key={resource.updatedAt}>
+      <fetcher.Form
+        method="post"
+        key={resource.updatedAt}
+        onChange={() => setIsDirty(true)}
+      >
         <FormFields>
           <input type="hidden" name="resourceName" value={basicInfo.resourceName} />
+          {isCompleted ? <input type="hidden" name="intent" value="full-update" /> : null}
           <FieldWrapper>
             <Input
               label="Resource name"
@@ -108,14 +125,20 @@ function BasicInfo() {
           <FieldWrapper>
             {error ? <ErrorText role="alert">{error}</ErrorText> : null}
             {isCompleted ? (
-              <Lead>Completed resources can no longer be edited here.</Lead>
+              <Lead>
+                This resource is completed. Changes are kept locally until you submit
+                them.
+              </Lead>
+            ) : null}
+            {isCompleted && isDirty ? (
+              <Lead>You have unsaved local changes - they are lost on refresh.</Lead>
             ) : null}
             <Button
               type="submit"
               variant="primary"
-              state={isCompleted || isSubmitting ? 'disabled' : 'normal'}
+              state={isSubmitting ? 'disabled' : 'normal'}
             >
-              {isSubmitting ? 'Saving…' : 'Save changes'}
+              {isSubmitting ? 'Saving…' : isCompleted ? 'Submit changes' : 'Save changes'}
             </Button>
           </FieldWrapper>
         </FormFields>

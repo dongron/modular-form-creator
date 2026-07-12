@@ -252,21 +252,115 @@ describe('ProjectDetails', () => {
     ).toBeInTheDocument()
   })
 
-  it('locks every field and disables saving for completed resources', async () => {
+  describe('completed resources', () => {
     const completedResource: ResourceModel = { ...resource, status: 'completed' }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(completedResource)))
 
-    renderProjectDetailsRoute()
+    it('keeps the fields editable and explains the local edit buffer', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(completedResource)))
 
-    expect(await screen.findByLabelText('Project name')).toBeDisabled()
-    expect(screen.getByLabelText('Budget')).toBeDisabled()
-    expect(screen.getByLabelText('Category')).toBeDisabled()
-    expect(screen.getByRole('checkbox', { name: 'FE devs' })).toBeDisabled()
-    expect(screen.getByRole('checkbox', { name: 'Designer' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
-    expect(
-      screen.getByText('Completed resources can no longer be edited here.'),
-    ).toBeInTheDocument()
+      renderProjectDetailsRoute()
+
+      expect(await screen.findByLabelText('Project name')).toBeEnabled()
+      expect(screen.getByLabelText('Budget')).toBeEnabled()
+      expect(screen.getByLabelText('Category')).toBeEnabled()
+      expect(screen.getByRole('checkbox', { name: 'FE devs' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Submit changes' })).toBeEnabled()
+      expect(
+        screen.getByText(
+          'This resource is completed. Changes are kept locally until you submit them.',
+        ),
+      ).toBeInTheDocument()
+    })
+
+    it('warns that unsaved local changes are lost on refresh once the form is edited', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(completedResource)))
+
+      renderProjectDetailsRoute()
+      const user = userEvent.setup()
+
+      await screen.findByLabelText('Project name')
+      expect(
+        screen.queryByText('You have unsaved local changes - they are lost on refresh.'),
+      ).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('checkbox', { name: 'Data Eng' }))
+
+      expect(
+        screen.getByText('You have unsaved local changes - they are lost on refresh.'),
+      ).toBeInTheDocument()
+    })
+
+    it('persists buffered edits through a single full PUT update on submit', async () => {
+      const updatedResource: ResourceModel = {
+        ...completedResource,
+        projectDetails: {
+          ...completedResource.projectDetails,
+          projectName: 'Atlas Platform v2 (saved)',
+        },
+        updatedAt: '2026-07-12T00:00:00.000Z',
+      }
+      let saved = false
+      const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          saved = true
+          return Promise.resolve(jsonResponse(updatedResource))
+        }
+        return Promise.resolve(jsonResponse(saved ? updatedResource : completedResource))
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      renderProjectDetailsRoute()
+      const user = userEvent.setup()
+
+      const projectName = await screen.findByLabelText('Project name')
+      await user.clear(projectName)
+      await user.type(projectName, 'Atlas Platform v2')
+      await user.click(screen.getByRole('button', { name: 'Submit changes' }))
+
+      expect(await screen.findByLabelText('Project name')).toHaveValue(
+        'Atlas Platform v2 (saved)',
+      )
+      expect(fetchMock).toHaveBeenCalledWith('/api/resources/42', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Project Atlas',
+          basicInfo: completedResource.basicInfo,
+          projectDetails: {
+            projectName: 'Atlas Platform v2',
+            budget: '100000',
+            category: 'external',
+            options: ['FE devs', 'Designer'],
+          },
+        }),
+      })
+      const patchCalls = fetchMock.mock.calls.filter(
+        (call) => (call[1] as RequestInit | undefined)?.method === 'PATCH',
+      )
+      expect(patchCalls).toHaveLength(0)
+    })
+
+    it('shows the API validation message when the full update returns 400', async () => {
+      const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          return Promise.resolve(
+            jsonResponse({ message: 'budget must contain only integers' }, 400),
+          )
+        }
+        return Promise.resolve(jsonResponse(completedResource))
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      renderProjectDetailsRoute()
+      const user = userEvent.setup()
+
+      await screen.findByLabelText('Project name')
+      await user.click(screen.getByRole('button', { name: 'Submit changes' }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'budget must contain only integers',
+      )
+    })
   })
 
   it('disables the fields and shows a saving label while the update is in flight', async () => {

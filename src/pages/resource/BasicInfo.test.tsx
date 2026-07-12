@@ -200,20 +200,123 @@ describe('BasicInfo', () => {
     expect(await screen.findByRole('button', { name: 'Save changes' })).toBeEnabled()
   })
 
-  it('locks every field and disables saving for completed resources', async () => {
-    const completedResource: ResourceModel = { ...resource, status: 'completed' }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(completedResource)))
+  describe('completed resources', () => {
+    const completedResource: ResourceModel = {
+      ...resource,
+      status: 'completed',
+      projectDetails: {
+        projectName: 'Atlas Platform',
+        budget: '100000',
+        category: 'external',
+        options: ['FE devs', 'Designer'],
+      },
+    }
 
-    renderBasicInfoRoute()
+    it('keeps the fields editable and explains the local edit buffer', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(completedResource)))
 
-    expect(await screen.findByLabelText('Owner')).toBeDisabled()
-    expect(screen.getByLabelText('Email')).toBeDisabled()
-    expect(screen.getByLabelText('Description')).toBeDisabled()
-    expect(screen.getByLabelText('Priority')).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
-    expect(
-      screen.getByText('Completed resources can no longer be edited here.'),
-    ).toBeInTheDocument()
+      renderBasicInfoRoute()
+
+      expect(await screen.findByLabelText('Owner')).toBeEnabled()
+      expect(screen.getByLabelText('Email')).toBeEnabled()
+      expect(screen.getByLabelText('Description')).toBeEnabled()
+      expect(screen.getByLabelText('Priority')).toBeEnabled()
+      expect(screen.getByLabelText('Resource name')).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Submit changes' })).toBeEnabled()
+      expect(
+        screen.getByText(
+          'This resource is completed. Changes are kept locally until you submit them.',
+        ),
+      ).toBeInTheDocument()
+    })
+
+    it('warns that unsaved local changes are lost on refresh once the form is edited', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(completedResource)))
+
+      renderBasicInfoRoute()
+      const user = userEvent.setup()
+
+      const owner = await screen.findByLabelText('Owner')
+      expect(
+        screen.queryByText('You have unsaved local changes - they are lost on refresh.'),
+      ).not.toBeInTheDocument()
+
+      await user.type(owner, ' Jr.')
+
+      expect(
+        screen.getByText('You have unsaved local changes - they are lost on refresh.'),
+      ).toBeInTheDocument()
+    })
+
+    it('persists buffered edits through a single full PUT update on submit', async () => {
+      const updatedResource: ResourceModel = {
+        ...completedResource,
+        basicInfo: { ...completedResource.basicInfo, owner: 'Grace Hopper (saved)' },
+        updatedAt: '2026-07-12T00:00:00.000Z',
+      }
+      let saved = false
+      const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          saved = true
+          return Promise.resolve(jsonResponse(updatedResource))
+        }
+        return Promise.resolve(jsonResponse(saved ? updatedResource : completedResource))
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      renderBasicInfoRoute()
+      const user = userEvent.setup()
+
+      const owner = await screen.findByLabelText('Owner')
+      await user.clear(owner)
+      await user.type(owner, 'Grace Hopper')
+      await user.click(screen.getByRole('button', { name: 'Submit changes' }))
+
+      await waitFor(() =>
+        expect(screen.getByLabelText('Owner')).toHaveValue('Grace Hopper (saved)'),
+      )
+      expect(fetchMock).toHaveBeenCalledWith('/api/resources/42', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Project Atlas',
+          basicInfo: {
+            resourceName: 'Project Atlas',
+            owner: 'Grace Hopper',
+            email: 'ada@example.com',
+            description: 'A resource with its basic information completed.',
+            priority: 'low',
+          },
+          projectDetails: completedResource.projectDetails,
+        }),
+      })
+      const patchCalls = fetchMock.mock.calls.filter(
+        (call) => (call[1] as RequestInit | undefined)?.method === 'PATCH',
+      )
+      expect(patchCalls).toHaveLength(0)
+    })
+
+    it('shows the API validation message when the full update returns 400', async () => {
+      const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          return Promise.resolve(
+            jsonResponse({ message: 'email must be a valid email format' }, 400),
+          )
+        }
+        return Promise.resolve(jsonResponse(completedResource))
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      renderBasicInfoRoute()
+      const user = userEvent.setup()
+
+      await screen.findByLabelText('Owner')
+      await user.click(screen.getByRole('button', { name: 'Submit changes' }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'email must be a valid email format',
+      )
+    })
   })
 
   it('renders the resource error page when the update returns 404', async () => {

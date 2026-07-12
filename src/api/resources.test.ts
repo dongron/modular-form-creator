@@ -4,8 +4,10 @@ import {
   fetchResource,
   updateBasicInfo,
   updateProjectDetails,
+  updateResource,
   ResourceValidationError,
   type BasicInfoPayload,
+  type FullUpdatePayload,
   type ProjectDetailsPayload,
   type Resource,
 } from './resources'
@@ -246,6 +248,100 @@ describe('updateProjectDetails', () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status })))
 
       await expect(updateProjectDetails(7, payload)).rejects.toMatchObject({ status })
+    },
+  )
+})
+
+describe('updateResource', () => {
+  const payload: FullUpdatePayload = {
+    name: 'Project Atlas',
+    basicInfo: {
+      resourceName: 'Project Atlas',
+      owner: 'Ada Lovelace',
+      email: 'ada@example.com',
+      description: 'Updated description.',
+      priority: 'high',
+    },
+    projectDetails: {
+      projectName: 'Atlas Platform',
+      budget: '100000',
+      category: 'external',
+      options: ['FE devs', 'Designer'],
+    },
+  }
+
+  it('puts the full resource payload and returns the updated resource', async () => {
+    const updatedResource: Resource = {
+      ...createdResource,
+      status: 'completed',
+      basicInfo: { ...payload.basicInfo },
+      projectDetails: { ...payload.projectDetails },
+    }
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(updatedResource), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(updateResource(7, payload)).resolves.toEqual(updatedResource)
+    expect(fetchMock).toHaveBeenCalledWith('/api/resources/7', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  })
+
+  it('throws the API validation message when the update returns 400', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            message: 'resourceName is locked after creation and cannot be changed',
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    )
+
+    let rejected: unknown
+    try {
+      await updateResource(7, payload)
+    } catch (error) {
+      rejected = error
+    }
+
+    expect(rejected).toBeInstanceOf(ResourceValidationError)
+    expect(rejected).toMatchObject({
+      message: 'resourceName is locked after creation and cannot be changed',
+    })
+  })
+
+  it('falls back to a safe message when the 400 body is not valid JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('not-json', { status: 400 })),
+    )
+
+    let rejected: unknown
+    try {
+      await updateResource(7, payload)
+    } catch (error) {
+      rejected = error
+    }
+
+    expect(rejected).toBeInstanceOf(ResourceValidationError)
+    expect(rejected).toMatchObject({ message: 'Resource update is invalid' })
+  })
+
+  it.each([404, 500])(
+    'throws a route response when the API returns %i',
+    async (status) => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status })))
+
+      await expect(updateResource(7, payload)).rejects.toMatchObject({ status })
     },
   )
 })

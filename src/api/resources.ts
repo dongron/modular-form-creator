@@ -54,6 +54,12 @@ export type ProjectDetailsPayload = {
   category: string
   options: string[]
 }
+
+export type FullUpdatePayload = {
+  name: string
+  basicInfo: BasicInfoPayload
+  projectDetails: ProjectDetailsPayload
+}
 export class ResourceValidationError extends Error {
   constructor(message: string) {
     super(message)
@@ -165,6 +171,29 @@ export async function updateProjectDetails(
 
   if (!res.ok) {
     throw new Response(`Failed to update project details (${res.status})`, {
+      status: res.status,
+    })
+  }
+  return res.json() as Promise<Resource>
+}
+
+export async function updateResource(
+  resourceId: string | number,
+  data: FullUpdatePayload,
+): Promise<Resource> {
+  const res = await fetch(`${API_URL}/${resourceId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (res.status === 400) {
+    throw new ResourceValidationError(
+      await parseValidationMessage(res, 'Resource update is invalid'),
+    )
+  }
+
+  if (!res.ok) {
+    throw new Response(`Failed to update resource (${res.status})`, {
       status: res.status,
     })
   }
