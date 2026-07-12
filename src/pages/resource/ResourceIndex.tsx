@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   redirect,
   useFetcher,
@@ -12,6 +13,7 @@ import {
 } from '../../utils/resourceCompletion'
 import { Badge, Button } from '../../design-system'
 import ResourceSummaryCards from '../components/ResourceSummaryCards'
+import DeleteConfirmDrawer from '../components/DeleteConfirmDrawer'
 import { CONTENT_WIDTH } from '../components/PageLayout'
 import { getStatusBadgeVariant } from '../../utils/statusBadge'
 
@@ -35,6 +37,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 function ResourceIndex() {
   const resource = useOutletContext<Resource>()
   const fetcher = useFetcher()
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
 
   const basicDone = isBasicInfoComplete(resource.basicInfo)
   const projectDone = isProjectDetailsComplete(resource.projectDetails)
@@ -61,17 +64,23 @@ function ResourceIndex() {
             {isCompleted ? 'Resource completed' : 'Mark as complete'}
           </Button>
         </fetcher.Form>
-        <fetcher.Form method="post">
-          <input type="hidden" name="intent" value="delete" />
-          <Button
-            type="submit"
-            variant="secondary"
-            state={isBusy ? 'disabled' : 'normal'}
-          >
-            Delete
-          </Button>
-        </fetcher.Form>
+        <Button
+          type="button"
+          variant="secondary"
+          state={isBusy ? 'disabled' : 'normal'}
+          onClick={() => setIsConfirmOpen(true)}
+        >
+          Delete
+        </Button>
       </Actions>
+      <DeleteConfirmDrawer
+        resourceName={resource.name}
+        resourceId={resource.resourceId}
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        fetcher={fetcher}
+        isSubmitting={isBusy}
+      />
     </>
   )
 }

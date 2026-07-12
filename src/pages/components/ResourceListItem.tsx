@@ -1,13 +1,28 @@
+import { useEffect, useRef, useState } from 'react'
 import { Link, useFetcher } from 'react-router-dom'
 import styled from 'styled-components'
 import { Badge, Card, IconButton } from '../../design-system'
 import { type Resource } from '../../api/resources'
 import { formatCreatedAt } from '../../utils/date'
 import { getStatusBadgeVariant } from '../../utils/statusBadge'
+import DeleteConfirmDrawer from './DeleteConfirmDrawer'
 
 function ResourceListItem({ resource }: { resource: Resource }) {
   const fetcher = useFetcher()
   const isDeleting = fetcher.state !== 'idle'
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const previousFetcherStateRef = useRef(fetcher.state)
+
+  useEffect(() => {
+    const hasStartedSubmitting =
+      previousFetcherStateRef.current === 'idle' && fetcher.state === 'submitting'
+
+    previousFetcherStateRef.current = fetcher.state
+
+    if (hasStartedSubmitting) {
+      setIsConfirmOpen(false)
+    }
+  }, [fetcher.state])
 
   return (
     <ListItem $dimmed={isDeleting}>
@@ -22,21 +37,26 @@ function ResourceListItem({ resource }: { resource: Resource }) {
           <Badge variant={getStatusBadgeVariant(resource.status)}>
             {resource.status}
           </Badge>
-          <fetcher.Form method="post">
-            <input type="hidden" name="intent" value="delete" />
-            <input type="hidden" name="resourceId" value={resource.resourceId} />
-            <IconButton
-              type="submit"
-              variant="ghost"
-              size="small"
-              state={isDeleting ? 'disabled' : 'normal'}
-              aria-label={`Delete ${resource.name}`}
-            >
-              ✕
-            </IconButton>
-          </fetcher.Form>
+          <IconButton
+            type="button"
+            variant="ghost"
+            size="small"
+            state={isDeleting ? 'disabled' : 'normal'}
+            aria-label={`Delete ${resource.name}`}
+            onClick={() => setIsConfirmOpen(true)}
+          >
+            ✕
+          </IconButton>
         </CardRow>
       </Card>
+      <DeleteConfirmDrawer
+        resourceName={resource.name}
+        resourceId={resource.resourceId}
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        fetcher={fetcher}
+        isSubmitting={isDeleting}
+      />
     </ListItem>
   )
 }

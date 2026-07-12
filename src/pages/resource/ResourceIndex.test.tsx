@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithRouter } from '../../test/render'
 import type { Resource as ResourceModel } from '../../api/resources'
@@ -28,17 +28,14 @@ const completeDraft: ResourceModel = {
   updatedAt: '2026-07-11T00:00:00.000Z',
 }
 
-function renderOverview(data: ResourceModel) {
-  // A fresh Response per call: the loader, the action, and the post-action
-  // revalidation each read the body, and a Response body can be read only once.
-  const fetchMock = vi.fn(() =>
-    Promise.resolve(
-      new Response(JSON.stringify(data), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    ),
-  )
+function jsonResponse(data: unknown) {
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+function renderResourceIndex(fetchMock: ReturnType<typeof vi.fn>) {
   vi.stubGlobal('fetch', fetchMock)
 
   renderWithRouter(<Resource />, {
@@ -49,6 +46,12 @@ function renderOverview(data: ResourceModel) {
   })
 
   return fetchMock
+}
+
+function renderOverview(data: ResourceModel) {
+  // A fresh Response per call: the loader, the action, and the post-action
+  // revalidation each read the body, and a Response body can be read only once.
+  return renderResourceIndex(vi.fn(() => Promise.resolve(jsonResponse(data))))
 }
 
 afterEach(() => {
@@ -99,16 +102,66 @@ describe('ResourceIndex overview', () => {
     })
   })
 
-  it('deletes the resource when Delete is clicked', async () => {
+  it('opens the confirmation drawer without submitting when Delete is clicked', async () => {
+    const user = userEvent.setup()
+    const fetchMock = renderOverview(completeDraft)
+
+    await screen.findByText('2 of 2 modules complete')
+    const callsBeforeClick = fetchMock.mock.calls.length
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.length).toBe(callsBeforeClick)
+  })
+
+  it('closes the confirmation drawer without submitting when Cancel is clicked', async () => {
+    const user = userEvent.setup()
+    const fetchMock = renderOverview(completeDraft)
+
+    await screen.findByText('2 of 2 modules complete')
+    const callsBeforeClick = fetchMock.mock.calls.length
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.length).toBe(callsBeforeClick)
+  })
+
+  it('deletes the resource when Delete is confirmed in the drawer', async () => {
     const fetchMock = renderOverview(completeDraft)
 
     await screen.findByText('2 of 2 modules complete')
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    const dialog = screen.getByRole('dialog')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/resources/42', {
         method: 'DELETE',
       })
     })
+  })
+
+  it('disables the confirm delete button while the request is in flight', async () => {
+    const user = userEvent.setup()
+    let callCount = 0
+    renderResourceIndex(
+      vi.fn(() => {
+        callCount += 1
+        return callCount === 1
+          ? Promise.resolve(jsonResponse(completeDraft))
+          : new Promise<Response>(() => {})
+      }),
+    )
+
+    await screen.findByText('2 of 2 modules complete')
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+
+    const dialog = screen.getByRole('dialog')
+    const confirmButton = within(dialog).getByRole('button', { name: 'Delete' })
+    await user.click(confirmButton)
+
+    await waitFor(() => expect(confirmButton).toBeDisabled())
   })
 })
