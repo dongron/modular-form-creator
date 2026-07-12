@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithRouter } from '../../test/render'
 import type { Resource as ResourceModel } from '../../api/resources'
@@ -367,6 +367,47 @@ describe('ProjectDetails', () => {
         (call) => (call[1] as RequestInit | undefined)?.method === 'PATCH',
       )
       expect(patchCalls).toHaveLength(0)
+    })
+
+    it('clears the unsaved-changes warning after a successful full update', async () => {
+      const updatedResource: ResourceModel = {
+        ...completedResource,
+        projectDetails: {
+          ...completedResource.projectDetails,
+          projectName: 'Atlas Platform v2 (saved)',
+        },
+        updatedAt: '2026-07-12T00:00:00.000Z',
+      }
+      let saved = false
+      const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          saved = true
+          return Promise.resolve(jsonResponse(updatedResource))
+        }
+        return Promise.resolve(jsonResponse(saved ? updatedResource : completedResource))
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      renderProjectDetailsRoute()
+      const user = userEvent.setup()
+
+      const projectName = await screen.findByLabelText('Project name')
+      await user.clear(projectName)
+      await user.type(projectName, 'Atlas Platform v2')
+      expect(
+        screen.getByText('You have unsaved local changes - they are lost on refresh.'),
+      ).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Submit changes' }))
+
+      await waitFor(() =>
+        expect(screen.getByLabelText('Project name')).toHaveValue(
+          'Atlas Platform v2 (saved)',
+        ),
+      )
+      expect(
+        screen.queryByText('You have unsaved local changes - they are lost on refresh.'),
+      ).not.toBeInTheDocument()
     })
 
     it('shows the API validation message when the full update returns 400', async () => {

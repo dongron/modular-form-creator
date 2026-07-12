@@ -365,6 +365,67 @@ describe('BasicInfo', () => {
       ).not.toBeInTheDocument()
     })
 
+    it('rebuilds the buffer from saved data when editing again after a successful update', async () => {
+      const firstSave: ResourceModel = {
+        ...completedResource,
+        basicInfo: { ...completedResource.basicInfo, owner: 'Grace Hopper (saved)' },
+        updatedAt: '2026-07-12T00:00:00.000Z',
+      }
+      const secondSave: ResourceModel = {
+        ...firstSave,
+        basicInfo: { ...firstSave.basicInfo, owner: 'Margaret Hamilton (saved)' },
+        updatedAt: '2026-07-13T00:00:00.000Z',
+      }
+      let current = completedResource
+      const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          current = current === completedResource ? firstSave : secondSave
+          return Promise.resolve(jsonResponse(current))
+        }
+        return Promise.resolve(jsonResponse(current))
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      renderBasicInfoRoute()
+      const user = userEvent.setup()
+
+      const owner = await screen.findByLabelText('Owner')
+      await user.clear(owner)
+      await user.type(owner, 'Grace Hopper')
+      await user.click(screen.getByRole('button', { name: 'Submit changes' }))
+      await waitFor(() =>
+        expect(screen.getByLabelText('Owner')).toHaveValue('Grace Hopper (saved)'),
+      )
+      expect(
+        screen.queryByText('You have unsaved local changes - they are lost on refresh.'),
+      ).not.toBeInTheDocument()
+
+      const savedOwner = screen.getByLabelText('Owner')
+      await user.clear(savedOwner)
+      await user.type(savedOwner, 'Margaret Hamilton')
+      expect(
+        screen.getByText('You have unsaved local changes - they are lost on refresh.'),
+      ).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: 'Submit changes' }))
+
+      await waitFor(() =>
+        expect(screen.getByLabelText('Owner')).toHaveValue('Margaret Hamilton (saved)'),
+      )
+      expect(fetchMock).toHaveBeenCalledWith('/api/resources/42', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Project Atlas',
+          basicInfo: { ...firstSave.basicInfo, owner: 'Margaret Hamilton' },
+          projectDetails: firstSave.projectDetails,
+        }),
+      })
+      expect(
+        screen.queryByText('You have unsaved local changes - they are lost on refresh.'),
+      ).not.toBeInTheDocument()
+    })
+
     it('shows the API validation message when the full update returns 400', async () => {
       const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
         if (init?.method === 'PUT') {
