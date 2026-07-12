@@ -9,8 +9,10 @@ import Resource, { loader as resourceLoader } from './pages/resource/Resource'
 import ResourceIndex, {
   action as resourceIndexAction,
 } from './pages/resource/ResourceIndex'
-import BasicInfo from './pages/resource/BasicInfo'
-import ProjectDetails from './pages/resource/ProjectDetails'
+import BasicInfo, { action as basicInfoAction } from './pages/resource/BasicInfo'
+import ProjectDetails, {
+  action as projectDetailsAction,
+} from './pages/resource/ProjectDetails'
 import ResourceDetails from './pages/resource/ResourceDetails'
 import ResourceError from './pages/resource/ResourceError'
 
@@ -32,8 +34,12 @@ const router = createBrowserRouter([
         errorElement: <ResourceError />,
         children: [
           { index: true, element: <ResourceIndex />, action: resourceIndexAction },
-          { path: 'basic-info', element: <BasicInfo /> },
-          { path: 'project-details', element: <ProjectDetails /> },
+          { path: 'basic-info', element: <BasicInfo />, action: basicInfoAction },
+          {
+            path: 'project-details',
+            element: <ProjectDetails />,
+            action: projectDetailsAction,
+          },
           { path: 'details', element: <ResourceDetails /> },
         ],
       },

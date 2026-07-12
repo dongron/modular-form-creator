@@ -1,92 +1,134 @@
-import { useOutletContext } from 'react-router-dom'
+import { useState } from 'react'
+import { useFetcher, useOutletContext, type ActionFunctionArgs } from 'react-router-dom'
 import styled from 'styled-components'
-import type { Resource } from '../../api/resources'
-import { IconButton, Input } from '../../design-system'
-import { FieldWrapper } from '../components/PageLayout'
+import {
+  updateProjectDetails,
+  ResourceValidationError,
+  type ProjectDetailsPayload,
+  type Resource,
+} from '../../api/resources'
+import { Button, CheckboxGroup, Input, Select } from '../../design-system'
+import { CONTENT_WIDTH, FieldWrapper, FormShell, Lead } from '../components/PageLayout'
+import { isBasicInfoComplete } from '../../utils/resourceCompletion'
+import { CATEGORY_OPTIONS, OPTION_CHOICES } from '../../utils/projectDetailsOptions'
+
+export type ProjectDetailsActionData = { ok: boolean; error: string | null }
+
+export async function action({ request, params }: ActionFunctionArgs) {
+  const formData = await request.formData()
+  const payload: ProjectDetailsPayload = {
+    projectName: String(formData.get('projectName') ?? ''),
+    budget: String(formData.get('budget') ?? ''),
+    category: String(formData.get('category') ?? ''),
+    options: formData.getAll('options').map(String),
+  }
+
+  try {
+    await updateProjectDetails(params.resourceId ?? '', payload)
+  } catch (error) {
+    if (error instanceof ResourceValidationError) {
+      return { ok: false as const, error: error.message }
+    }
+    throw error
+  }
+
+  return { ok: true as const, error: null }
+}
 
 function ProjectDetails() {
-  const { projectDetails } = useOutletContext<Resource>()
+  const resource = useOutletContext<Resource>()
+  const fetcher = useFetcher<ProjectDetailsActionData>()
+  const { projectDetails } = resource
+  const error = fetcher.data?.error
+  const isCompleted = resource.status === 'completed'
+  const isSubmitting = fetcher.state !== 'idle'
+  const isBasicInfoIncomplete = !isCompleted && !isBasicInfoComplete(resource.basicInfo)
+  const isLocked = isCompleted || isBasicInfoIncomplete
+  const fieldState = isLocked ? 'locked' : isSubmitting ? 'disabled' : 'normal'
+  const [options, setOptions] = useState<string[]>(projectDetails.options)
 
   return (
-    <>
-      <FieldWrapper>
-        <Input
-          label="Project name"
-          defaultValue={projectDetails.projectName}
-          state="locked"
-        />
-      </FieldWrapper>
-      <FieldWrapper>
-        <Input label="Budget" defaultValue={projectDetails.budget} state="locked" />
-      </FieldWrapper>
-      <FieldWrapper>
-        <Input label="Category" defaultValue={projectDetails.category} state="locked" />
-      </FieldWrapper>
-      <FieldWrapper>
-        <OptionsGroup>
-          <OptionsLegend>Options</OptionsLegend>
-          <OptionsList>
-            {projectDetails.options.map((option, index) => (
-              <OptionRow key={`${option}-${index}`}>
-                <Input
-                  aria-label={`Option ${index + 1}`}
-                  defaultValue={option}
-                  state="locked"
-                />
-                <IconButton
-                  type="button"
-                  variant="ghost"
-                  size="small"
-                  state="disabled"
-                  aria-label={`Delete option ${index + 1}`}
-                >
-                  ✕
-                </IconButton>
-              </OptionRow>
+    <FormShell>
+      {/* Remount the form when a save changes updatedAt so uncontrolled inputs
+          pick up the server-trimmed values from the revalidated loader data. */}
+      <fetcher.Form method="post" key={resource.updatedAt}>
+        <FormFields>
+          <FieldWrapper>
+            <Input
+              name="projectName"
+              label="Project name"
+              defaultValue={projectDetails.projectName}
+              maxLength={255}
+              required
+              state={fieldState}
+            />
+          </FieldWrapper>
+          <FieldWrapper>
+            <Input
+              name="budget"
+              label="Budget"
+              defaultValue={projectDetails.budget}
+              required
+              state={fieldState}
+            />
+          </FieldWrapper>
+          <FieldWrapper>
+            <Select
+              name="category"
+              label="Category"
+              defaultValue={projectDetails.category}
+              options={CATEGORY_OPTIONS}
+              required
+              state={fieldState}
+            />
+          </FieldWrapper>
+          <FieldWrapper>
+            <CheckboxGroup
+              label="Options"
+              options={OPTION_CHOICES}
+              value={options}
+              onChange={setOptions}
+              disabled={isLocked || isSubmitting}
+            />
+            {options.map((option) => (
+              <input key={option} type="hidden" name="options" value={option} />
             ))}
-          </OptionsList>
-          <IconButton
-            type="button"
-            variant="solid"
-            size="small"
-            state="disabled"
-            aria-label="Add option"
-          >
-            +
-          </IconButton>
-        </OptionsGroup>
-      </FieldWrapper>
-    </>
+          </FieldWrapper>
+          <FieldWrapper>
+            {error ? <ErrorText role="alert">{error}</ErrorText> : null}
+            {isCompleted ? (
+              <Lead>Completed resources can no longer be edited here.</Lead>
+            ) : null}
+            {isBasicInfoIncomplete ? (
+              <Lead>
+                Basic Info must be completed before Project Details can be edited.
+              </Lead>
+            ) : null}
+            <Button
+              type="submit"
+              variant="primary"
+              state={isLocked || isSubmitting ? 'disabled' : 'normal'}
+            >
+              {isSubmitting ? 'Saving…' : 'Save changes'}
+            </Button>
+          </FieldWrapper>
+        </FormFields>
+      </fetcher.Form>
+    </FormShell>
   )
 }
 
-const OptionsGroup = styled.fieldset`
-  min-width: 0;
-  display: grid;
-  gap: ${({ theme }) => theme.spacing.xs};
-  margin: 0;
-  padding: 0;
-  border: 0;
+const FormFields = styled.div`
+  width: ${CONTENT_WIDTH};
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.lg};
 `
 
-const OptionsLegend = styled.legend`
-  margin-bottom: ${({ theme }) => theme.spacing.xs};
-  padding: 0;
-  font-size: 0.9rem;
+const ErrorText = styled.p`
+  margin-bottom: ${({ theme }) => theme.spacing.sm};
   font-weight: 600;
-  color: ${({ theme }) => theme.colors.inkStrong};
-`
-
-const OptionsList = styled.div`
-  display: grid;
-  gap: ${({ theme }) => theme.spacing.sm};
-`
-
-const OptionRow = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.sm};
+  color: ${({ theme }) => theme.colors.warning};
 `
 
 export default ProjectDetails

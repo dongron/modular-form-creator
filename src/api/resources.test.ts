@@ -2,7 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createResource,
   fetchResource,
+  updateBasicInfo,
+  updateProjectDetails,
   ResourceValidationError,
+  type BasicInfoPayload,
+  type ProjectDetailsPayload,
   type Resource,
 } from './resources'
 
@@ -81,6 +85,169 @@ describe('createResource', () => {
       { status: 500 },
     )
   })
+})
+
+describe('updateBasicInfo', () => {
+  const payload: BasicInfoPayload = {
+    resourceName: 'Project Atlas',
+    owner: 'Ada Lovelace',
+    email: 'ada@example.com',
+    description: 'Updated description.',
+    priority: 'high',
+  }
+
+  it('patches the basic info module and returns the updated resource', async () => {
+    const updatedResource: Resource = {
+      ...createdResource,
+      basicInfo: { ...payload },
+    }
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(updatedResource), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(updateBasicInfo(7, payload)).resolves.toEqual(updatedResource)
+    expect(fetchMock).toHaveBeenCalledWith('/api/resources/7/basic-info', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  })
+
+  it('throws the API validation message when the update returns 400', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ message: 'email must be a valid email format' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } },
+          ),
+        ),
+    )
+
+    let rejected: unknown
+    try {
+      await updateBasicInfo(7, payload)
+    } catch (error) {
+      rejected = error
+    }
+
+    expect(rejected).toBeInstanceOf(ResourceValidationError)
+    expect(rejected).toMatchObject({ message: 'email must be a valid email format' })
+  })
+
+  it('falls back to a safe message when the 400 body is not valid JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('not-json', { status: 400 })),
+    )
+
+    let rejected: unknown
+    try {
+      await updateBasicInfo(7, payload)
+    } catch (error) {
+      rejected = error
+    }
+
+    expect(rejected).toBeInstanceOf(ResourceValidationError)
+    expect(rejected).toMatchObject({ message: 'Basic info is invalid' })
+  })
+
+  it.each([404, 500])(
+    'throws a route response when the API returns %i',
+    async (status) => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status })))
+
+      await expect(updateBasicInfo(7, payload)).rejects.toMatchObject({ status })
+    },
+  )
+})
+
+describe('updateProjectDetails', () => {
+  const payload: ProjectDetailsPayload = {
+    projectName: 'Atlas Platform',
+    budget: '100000',
+    category: 'external',
+    options: ['FE devs', 'Designer'],
+  }
+
+  it('patches the project details module and returns the updated resource', async () => {
+    const updatedResource: Resource = {
+      ...createdResource,
+      projectDetails: { ...payload },
+    }
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(updatedResource), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(updateProjectDetails(7, payload)).resolves.toEqual(updatedResource)
+    expect(fetchMock).toHaveBeenCalledWith('/api/resources/7/project-details', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  })
+
+  it('throws the API validation message when the update returns 400', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            message: 'Project Details can be updated only after Basic Info is completed.',
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    )
+
+    let rejected: unknown
+    try {
+      await updateProjectDetails(7, payload)
+    } catch (error) {
+      rejected = error
+    }
+
+    expect(rejected).toBeInstanceOf(ResourceValidationError)
+    expect(rejected).toMatchObject({
+      message: 'Project Details can be updated only after Basic Info is completed.',
+    })
+  })
+
+  it('falls back to a safe message when the 400 body is not valid JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('not-json', { status: 400 })),
+    )
+
+    let rejected: unknown
+    try {
+      await updateProjectDetails(7, payload)
+    } catch (error) {
+      rejected = error
+    }
+
+    expect(rejected).toBeInstanceOf(ResourceValidationError)
+    expect(rejected).toMatchObject({ message: 'Project details are invalid' })
+  })
+
+  it.each([404, 500])(
+    'throws a route response when the API returns %i',
+    async (status) => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status })))
+
+      await expect(updateProjectDetails(7, payload)).rejects.toMatchObject({ status })
+    },
+  )
 })
 
 describe('fetchResource', () => {

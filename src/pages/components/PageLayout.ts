@@ -25,6 +25,10 @@ export const FieldWrapper = styled.div`
   }
 `
 
+export const FormShell = styled.div`
+  width: ${CONTENT_WIDTH};
+`
+
 export const PageShell = styled.main<{
   $centered?: boolean
   $gap?: keyof Theme['spacing']

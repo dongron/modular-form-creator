@@ -4,6 +4,7 @@ import { renderWithTheme } from '../../test/render'
 import {
   CONTENT_WIDTH,
   FieldWrapper,
+  FormShell,
   HeaderCopy,
   Heading,
   Lead,
@@ -40,6 +41,27 @@ describe('PageLayout primitives', () => {
 
     expect(screen.getByLabelText('Resource name')).toBeInTheDocument()
     expect(screen.getByLabelText('Resource name')).toHaveStyle({ width: '100%' })
+  })
+
+  it('renders a shared wrapper for a form at content width', () => {
+    renderWithTheme(
+      <FormShell>
+        <form aria-label="Example form">
+          <input aria-label="Resource name" />
+        </form>
+      </FormShell>,
+    )
+
+    expect(screen.getByRole('form', { name: 'Example form' })).toBeInTheDocument()
+
+    const wrapperClass = screen
+      .getByRole('form', { name: 'Example form' })
+      .parentElement?.className.split(' ')
+      .pop()
+    const emittedCss = Array.from(document.querySelectorAll('style'))
+      .map((style) => style.textContent)
+      .join('\n')
+    expect(emittedCss).toContain(`.${wrapperClass}{width:${CONTENT_WIDTH}`)
   })
 
   it('renders page header content and actions', () => {

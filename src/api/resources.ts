@@ -40,11 +40,42 @@ export type ResourceFilters = {
   sortOrder?: 'asc' | 'desc'
 }
 
+export type BasicInfoPayload = {
+  resourceName: string
+  owner: string
+  email: string
+  description: string
+  priority: string
+}
+
+export type ProjectDetailsPayload = {
+  projectName: string
+  budget: string
+  category: string
+  options: string[]
+}
 export class ResourceValidationError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'ResourceValidationError'
   }
+}
+
+async function parseValidationMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const body: unknown = await res.json()
+    if (
+      typeof body === 'object' &&
+      body !== null &&
+      'message' in body &&
+      typeof body.message === 'string'
+    ) {
+      return body.message
+    }
+  } catch {
+    // Keep the safe fallback when the API returns an invalid validation body.
+  }
+  return fallback
 }
 
 export async function fetchResources(
@@ -94,6 +125,52 @@ export async function provisionResource(resourceId: string | number): Promise<Re
   return res.json() as Promise<Resource>
 }
 
+export async function updateBasicInfo(
+  resourceId: string | number,
+  data: BasicInfoPayload,
+): Promise<Resource> {
+  const res = await fetch(`${API_URL}/${resourceId}/basic-info`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (res.status === 400) {
+    throw new ResourceValidationError(
+      await parseValidationMessage(res, 'Basic info is invalid'),
+    )
+  }
+
+  if (!res.ok) {
+    throw new Response(`Failed to update basic info (${res.status})`, {
+      status: res.status,
+    })
+  }
+  return res.json() as Promise<Resource>
+}
+
+export async function updateProjectDetails(
+  resourceId: string | number,
+  data: ProjectDetailsPayload,
+): Promise<Resource> {
+  const res = await fetch(`${API_URL}/${resourceId}/project-details`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (res.status === 400) {
+    throw new ResourceValidationError(
+      await parseValidationMessage(res, 'Project details are invalid'),
+    )
+  }
+
+  if (!res.ok) {
+    throw new Response(`Failed to update project details (${res.status})`, {
+      status: res.status,
+    })
+  }
+  return res.json() as Promise<Resource>
+}
+
 export async function createResource(data: { resourceName: string }): Promise<Resource> {
   const res = await fetch(API_URL, {
     method: 'POST',
@@ -101,23 +178,9 @@ export async function createResource(data: { resourceName: string }): Promise<Re
     body: JSON.stringify(data),
   })
   if (res.status === 400) {
-    let message = 'Resource name is invalid'
-
-    try {
-      const body: unknown = await res.json()
-      if (
-        typeof body === 'object' &&
-        body !== null &&
-        'message' in body &&
-        typeof body.message === 'string'
-      ) {
-        message = body.message
-      }
-    } catch {
-      // Keep the safe fallback when the API returns an invalid validation body.
-    }
-
-    throw new ResourceValidationError(message)
+    throw new ResourceValidationError(
+      await parseValidationMessage(res, 'Resource name is invalid'),
+    )
   }
 
   if (!res.ok) {
