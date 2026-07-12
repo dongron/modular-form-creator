@@ -3,9 +3,10 @@ import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithRouter } from '../../test/render'
 import type { Resource as ResourceModel } from '../../api/resources'
-import Resource, { loader as resourceLoader } from './Resource'
+import Resource, { action as resourceAction, loader as resourceLoader } from './Resource'
 import ResourceError from './ResourceError'
 import ProjectDetails, { action as projectDetailsAction } from './ProjectDetails'
+import BasicInfo from './BasicInfo'
 
 const resource: ResourceModel = {
   _id: 'resource-object-id',
@@ -34,6 +35,7 @@ function renderProjectDetailsRoute() {
     path: '/resources/:resourceId',
     initialEntries: ['/resources/42/project-details'],
     loader: resourceLoader,
+    action: resourceAction,
     ErrorBoundary: ResourceError,
     children: [
       {
@@ -288,6 +290,33 @@ describe('ProjectDetails', () => {
       expect(
         screen.getByText('You have unsaved local changes - they are lost on refresh.'),
       ).toBeInTheDocument()
+    })
+
+    it('keeps buffered option changes after navigating to Basic Info and back', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(completedResource)))
+      const user = userEvent.setup()
+
+      renderWithRouter(<Resource />, {
+        path: '/resources/:resourceId',
+        initialEntries: ['/resources/42/project-details'],
+        loader: resourceLoader,
+        children: [
+          { path: 'basic-info', Component: BasicInfo },
+          {
+            path: 'project-details',
+            Component: ProjectDetails,
+            action: projectDetailsAction,
+          },
+        ],
+      })
+
+      await screen.findByLabelText('Project name')
+      await user.click(screen.getByRole('checkbox', { name: 'Data Eng' }))
+      await user.click(screen.getByRole('link', { name: 'Edit basic info' }))
+      await screen.findByLabelText('Owner')
+      await user.click(screen.getByRole('link', { name: 'Edit project details' }))
+
+      expect(await screen.findByRole('checkbox', { name: 'Data Eng' })).toBeChecked()
     })
 
     it('persists buffered edits through a single full PUT update on submit', async () => {

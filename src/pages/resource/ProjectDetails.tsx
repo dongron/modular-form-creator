@@ -2,18 +2,16 @@ import { useState } from 'react'
 import { useFetcher, useOutletContext, type ActionFunctionArgs } from 'react-router-dom'
 import styled from 'styled-components'
 import {
-  fetchResource,
   updateProjectDetails,
-  updateResource,
   ResourceValidationError,
   type ProjectDetailsPayload,
-  type Resource,
 } from '../../api/resources'
 import { Button, CheckboxGroup, Input, Select } from '../../design-system'
 import { CONTENT_WIDTH, FieldWrapper, FormShell, Lead } from '../components/PageLayout'
 import { isBasicInfoComplete } from '../../utils/resourceCompletion'
 import { CATEGORY_OPTIONS, OPTION_CHOICES } from '../../utils/projectDetailsOptions'
 import { getSubmitLabel } from '../../utils/submitLabel'
+import type { ResourceOutletContext } from './Resource'
 
 export type ProjectDetailsActionData = { ok: boolean; error: string | null }
 
@@ -27,16 +25,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   try {
-    if (formData.get('intent') === 'full-update') {
-      const current = await fetchResource(params.resourceId ?? '')
-      await updateResource(params.resourceId ?? '', {
-        name: current.name,
-        basicInfo: current.basicInfo,
-        projectDetails: payload,
-      })
-    } else {
-      await updateProjectDetails(params.resourceId ?? '', payload)
-    }
+    await updateProjectDetails(params.resourceId ?? '', payload)
   } catch (error) {
     if (error instanceof ResourceValidationError) {
       return { ok: false as const, error: error.message }
@@ -48,17 +37,26 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 function ProjectDetails() {
-  const resource = useOutletContext<Resource>()
+  const {
+    resource,
+    hasCompletedEdits,
+    updateCompletedProjectDetails,
+    submitCompletedChanges,
+    isSubmittingCompletedChanges,
+    completedChangesError,
+  } = useOutletContext<ResourceOutletContext>()
   const fetcher = useFetcher<ProjectDetailsActionData>()
   const { projectDetails } = resource
-  const error = fetcher.data?.error
   const isCompleted = resource.status === 'completed'
-  const isSubmitting = fetcher.state !== 'idle'
+  const isSubmitting = isCompleted
+    ? isSubmittingCompletedChanges
+    : fetcher.state !== 'idle'
+  const error = isCompleted ? completedChangesError : fetcher.data?.error
   const isBasicInfoIncomplete = !isCompleted && !isBasicInfoComplete(resource.basicInfo)
   const isLocked = isBasicInfoIncomplete
   const fieldState = isLocked ? 'locked' : isSubmitting ? 'disabled' : 'normal'
   const [options, setOptions] = useState<string[]>(projectDetails.options)
-  const [isDirty, setIsDirty] = useState(false)
+  const selectedOptions = isCompleted ? projectDetails.options : options
 
   return (
     <FormShell>
@@ -67,15 +65,28 @@ function ProjectDetails() {
       <fetcher.Form
         method="post"
         key={resource.updatedAt}
-        onChange={() => setIsDirty(true)}
+        onSubmit={(event) => {
+          if (isCompleted) {
+            event.preventDefault()
+            submitCompletedChanges()
+          }
+        }}
       >
         <FormFields>
-          {isCompleted ? <input type="hidden" name="intent" value="full-update" /> : null}
           <FieldWrapper>
             <Input
               name="projectName"
               label="Project name"
-              defaultValue={projectDetails.projectName}
+              defaultValue={isCompleted ? undefined : projectDetails.projectName}
+              value={isCompleted ? projectDetails.projectName : undefined}
+              onChange={
+                isCompleted
+                  ? (event) =>
+                      updateCompletedProjectDetails({
+                        projectName: event.currentTarget.value,
+                      })
+                  : undefined
+              }
               maxLength={255}
               required
               state={fieldState}
@@ -85,7 +96,14 @@ function ProjectDetails() {
             <Input
               name="budget"
               label="Budget"
-              defaultValue={projectDetails.budget}
+              defaultValue={isCompleted ? undefined : projectDetails.budget}
+              value={isCompleted ? projectDetails.budget : undefined}
+              onChange={
+                isCompleted
+                  ? (event) =>
+                      updateCompletedProjectDetails({ budget: event.currentTarget.value })
+                  : undefined
+              }
               required
               state={fieldState}
             />
@@ -94,7 +112,16 @@ function ProjectDetails() {
             <Select
               name="category"
               label="Category"
-              defaultValue={projectDetails.category}
+              defaultValue={isCompleted ? undefined : projectDetails.category}
+              value={isCompleted ? projectDetails.category : undefined}
+              onChange={
+                isCompleted
+                  ? (event) =>
+                      updateCompletedProjectDetails({
+                        category: event.currentTarget.value,
+                      })
+                  : undefined
+              }
               options={CATEGORY_OPTIONS}
               required
               state={fieldState}
@@ -104,11 +131,17 @@ function ProjectDetails() {
             <CheckboxGroup
               label="Options"
               options={OPTION_CHOICES}
-              value={options}
-              onChange={setOptions}
+              value={selectedOptions}
+              onChange={(nextOptions) => {
+                if (isCompleted) {
+                  updateCompletedProjectDetails({ options: nextOptions })
+                } else {
+                  setOptions(nextOptions)
+                }
+              }}
               disabled={isLocked || isSubmitting}
             />
-            {options.map((option) => (
+            {selectedOptions.map((option) => (
               <input key={option} type="hidden" name="options" value={option} />
             ))}
           </FieldWrapper>
@@ -120,7 +153,7 @@ function ProjectDetails() {
                 them.
               </Lead>
             ) : null}
-            {isCompleted && isDirty ? (
+            {isCompleted && hasCompletedEdits ? (
               <Lead>You have unsaved local changes - they are lost on refresh.</Lead>
             ) : null}
             {isBasicInfoIncomplete ? (

@@ -1,13 +1,13 @@
 import { useOutletContext } from 'react-router-dom'
 import styled from 'styled-components'
-import type { Resource } from '../../api/resources'
 import { Badge } from '../../design-system'
 import ResourceSummaryCards from '../components/ResourceSummaryCards'
 import { CONTENT_WIDTH } from '../components/PageLayout'
 import { getStatusBadgeVariant } from '../../utils/statusBadge'
+import type { ResourceOutletContext } from './Resource'
 
 function ResourceDetails() {
-  const resource = useOutletContext<Resource>()
+  const { resource } = useOutletContext<ResourceOutletContext>()
 
   return (
     <>

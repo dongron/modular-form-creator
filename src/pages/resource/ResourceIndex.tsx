@@ -6,7 +6,7 @@ import {
   type ActionFunctionArgs,
 } from 'react-router-dom'
 import styled from 'styled-components'
-import { deleteResource, provisionResource, type Resource } from '../../api/resources'
+import { deleteResource, provisionResource } from '../../api/resources'
 import {
   isBasicInfoComplete,
   isProjectDetailsComplete,
@@ -16,13 +16,14 @@ import ResourceSummaryCards from '../components/ResourceSummaryCards'
 import DeleteConfirmDrawer from '../components/DeleteConfirmDrawer'
 import { CONTENT_WIDTH } from '../components/PageLayout'
 import { getStatusBadgeVariant } from '../../utils/statusBadge'
+import type { ResourceOutletContext } from './Resource'
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const formData = await request.formData()
   const intent = formData.get('intent')
 
   if (intent === 'delete') {
-    await deleteResource(Number(params.resourceId))
+    await deleteResource(params.resourceId ?? '')
     return redirect('/resources')
   }
 
@@ -35,7 +36,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 function ResourceIndex() {
-  const resource = useOutletContext<Resource>()
+  const { resource } = useOutletContext<ResourceOutletContext>()
   const fetcher = useFetcher()
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
 

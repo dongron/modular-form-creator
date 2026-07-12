@@ -5,7 +5,10 @@ import Resources, {
   action as resourcesAction,
   loader as resourcesLoader,
 } from './pages/Resources'
-import Resource, { loader as resourceLoader } from './pages/resource/Resource'
+import Resource, {
+  action as resourceAction,
+  loader as resourceLoader,
+} from './pages/resource/Resource'
 import ResourceIndex, {
   action as resourceIndexAction,
 } from './pages/resource/ResourceIndex'
@@ -31,6 +34,7 @@ const router = createBrowserRouter([
         path: '/resources/:resourceId',
         element: <Resource />,
         loader: resourceLoader,
+        action: resourceAction,
         errorElement: <ResourceError />,
         children: [
           { index: true, element: <ResourceIndex />, action: resourceIndexAction },

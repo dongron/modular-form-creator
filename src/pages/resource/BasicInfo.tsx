@@ -1,18 +1,15 @@
-import { useState } from 'react'
 import { useFetcher, useOutletContext, type ActionFunctionArgs } from 'react-router-dom'
 import styled from 'styled-components'
 import {
-  fetchResource,
   updateBasicInfo,
-  updateResource,
   ResourceValidationError,
   type BasicInfoPayload,
-  type Resource,
 } from '../../api/resources'
 import { Button, Input, Select } from '../../design-system'
 import { CONTENT_WIDTH, FieldWrapper, FormShell, Lead } from '../components/PageLayout'
 import { PRIORITY_OPTIONS } from '../../utils/basicInfoOptions'
 import { getSubmitLabel } from '../../utils/submitLabel'
+import type { ResourceOutletContext } from './Resource'
 
 export type BasicInfoActionData = { ok: boolean; error: string | null }
 
@@ -27,16 +24,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   try {
-    if (formData.get('intent') === 'full-update') {
-      const current = await fetchResource(params.resourceId ?? '')
-      await updateResource(params.resourceId ?? '', {
-        name: current.name,
-        basicInfo: { ...payload, resourceName: current.basicInfo.resourceName },
-        projectDetails: current.projectDetails,
-      })
-    } else {
-      await updateBasicInfo(params.resourceId ?? '', payload)
-    }
+    await updateBasicInfo(params.resourceId ?? '', payload)
   } catch (error) {
     if (error instanceof ResourceValidationError) {
       return { ok: false as const, error: error.message }
@@ -48,26 +36,37 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 function BasicInfo() {
-  const resource = useOutletContext<Resource>()
+  const {
+    resource,
+    hasCompletedEdits,
+    updateCompletedBasicInfo,
+    submitCompletedChanges,
+    isSubmittingCompletedChanges,
+    completedChangesError,
+  } = useOutletContext<ResourceOutletContext>()
   const fetcher = useFetcher<BasicInfoActionData>()
   const { basicInfo } = resource
-  const error = fetcher.data?.error
   const isCompleted = resource.status === 'completed'
-  const isSubmitting = fetcher.state !== 'idle'
+  const isSubmitting = isCompleted
+    ? isSubmittingCompletedChanges
+    : fetcher.state !== 'idle'
+  const error = isCompleted ? completedChangesError : fetcher.data?.error
   const fieldState = isSubmitting ? 'disabled' : 'normal'
-  // I am usually using react-hook-form for this kind of form, but I wanted to keep it simple and minimal here
-  const [isDirty, setIsDirty] = useState(false)
 
   return (
     <FormShell>
       <fetcher.Form
         method="post"
         key={resource.updatedAt}
-        onChange={() => setIsDirty(true)}
+        onSubmit={(event) => {
+          if (isCompleted) {
+            event.preventDefault()
+            submitCompletedChanges()
+          }
+        }}
       >
         <FormFields>
           <input type="hidden" name="resourceName" value={basicInfo.resourceName} />
-          {isCompleted ? <input type="hidden" name="intent" value="full-update" /> : null}
           <FieldWrapper>
             <Input
               label="Resource name"
@@ -80,7 +79,14 @@ function BasicInfo() {
             <Input
               name="owner"
               label="Owner"
-              defaultValue={basicInfo.owner}
+              defaultValue={isCompleted ? undefined : basicInfo.owner}
+              value={isCompleted ? basicInfo.owner : undefined}
+              onChange={
+                isCompleted
+                  ? (event) =>
+                      updateCompletedBasicInfo({ owner: event.currentTarget.value })
+                  : undefined
+              }
               maxLength={255}
               required
               state={fieldState}
@@ -91,7 +97,14 @@ function BasicInfo() {
               name="email"
               label="Email"
               type="email"
-              defaultValue={basicInfo.email}
+              defaultValue={isCompleted ? undefined : basicInfo.email}
+              value={isCompleted ? basicInfo.email : undefined}
+              onChange={
+                isCompleted
+                  ? (event) =>
+                      updateCompletedBasicInfo({ email: event.currentTarget.value })
+                  : undefined
+              }
               required
               state={fieldState}
             />
@@ -100,7 +113,14 @@ function BasicInfo() {
             <Input
               name="description"
               label="Description"
-              defaultValue={basicInfo.description}
+              defaultValue={isCompleted ? undefined : basicInfo.description}
+              value={isCompleted ? basicInfo.description : undefined}
+              onChange={
+                isCompleted
+                  ? (event) =>
+                      updateCompletedBasicInfo({ description: event.currentTarget.value })
+                  : undefined
+              }
               multiline
               maxLength={1000}
               required
@@ -111,7 +131,14 @@ function BasicInfo() {
             <Select
               name="priority"
               label="Priority"
-              defaultValue={basicInfo.priority}
+              defaultValue={isCompleted ? undefined : basicInfo.priority}
+              value={isCompleted ? basicInfo.priority : undefined}
+              onChange={
+                isCompleted
+                  ? (event) =>
+                      updateCompletedBasicInfo({ priority: event.currentTarget.value })
+                  : undefined
+              }
               options={PRIORITY_OPTIONS}
               required
               state={fieldState}
@@ -125,7 +152,7 @@ function BasicInfo() {
                 them.
               </Lead>
             ) : null}
-            {isCompleted && isDirty ? (
+            {isCompleted && hasCompletedEdits ? (
               <Lead>You have unsaved local changes - they are lost on refresh.</Lead>
             ) : null}
             <Button

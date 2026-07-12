@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { renderWithRouter } from '../../test/render'
+import type { ActionFunctionArgs } from 'react-router-dom'
+import { renderWithRoutes } from '../../test/render'
 import type { Resource as ResourceModel } from '../../api/resources'
 import Resource, { loader as resourceLoader } from './Resource'
 import ResourceIndex, { action as resourceIndexAction } from './ResourceIndex'
@@ -38,14 +39,36 @@ function jsonResponse(data: unknown) {
 function renderResourceIndex(fetchMock: ReturnType<typeof vi.fn>) {
   vi.stubGlobal('fetch', fetchMock)
 
-  renderWithRouter(<Resource />, {
-    path: '/resources/:resourceId',
-    initialEntries: ['/resources/42'],
-    loader: resourceLoader,
-    children: [{ index: true, Component: ResourceIndex, action: resourceIndexAction }],
-  })
+  renderWithRoutes(
+    [
+      {
+        path: '/resources/:resourceId',
+        Component: Resource,
+        loader: resourceLoader,
+        HydrateFallback: () => null,
+        children: [
+          { index: true, Component: ResourceIndex, action: resourceIndexAction },
+        ],
+      },
+      { path: '/resources', Component: () => null },
+    ],
+    { initialEntries: ['/resources/42'] },
+  )
 
   return fetchMock
+}
+
+function renderResourceIndexWithPendingDelete() {
+  let callCount = 0
+
+  return renderResourceIndex(
+    vi.fn(() => {
+      callCount += 1
+      return callCount === 1
+        ? Promise.resolve(jsonResponse(completeDraft))
+        : new Promise<Response>(() => {})
+    }),
+  )
 }
 
 function renderOverview(data: ResourceModel) {
@@ -143,17 +166,28 @@ describe('ResourceIndex overview', () => {
     })
   })
 
+  it('deletes a resource addressed by its Mongo ObjectId', async () => {
+    const resourceId = '507f1f77bcf86cd799439011'
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(completeDraft))
+    vi.stubGlobal('fetch', fetchMock)
+    const request = new Request(`http://localhost/resources/${resourceId}`, {
+      method: 'POST',
+      body: new URLSearchParams({ intent: 'delete' }),
+    })
+
+    await resourceIndexAction({
+      request,
+      params: { resourceId },
+    } as unknown as ActionFunctionArgs)
+
+    expect(fetchMock).toHaveBeenCalledWith(`/api/resources/${resourceId}`, {
+      method: 'DELETE',
+    })
+  })
+
   it('disables the confirm delete button while the request is in flight', async () => {
     const user = userEvent.setup()
-    let callCount = 0
-    renderResourceIndex(
-      vi.fn(() => {
-        callCount += 1
-        return callCount === 1
-          ? Promise.resolve(jsonResponse(completeDraft))
-          : new Promise<Response>(() => {})
-      }),
-    )
+    renderResourceIndexWithPendingDelete()
 
     await screen.findByText('2 of 2 modules complete')
     await user.click(screen.getByRole('button', { name: 'Delete' }))

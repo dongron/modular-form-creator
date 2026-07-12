@@ -3,9 +3,10 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithRouter } from '../../test/render'
 import type { Resource as ResourceModel } from '../../api/resources'
-import Resource, { loader as resourceLoader } from './Resource'
+import Resource, { action as resourceAction, loader as resourceLoader } from './Resource'
 import ResourceError from './ResourceError'
 import BasicInfo, { action as basicInfoAction } from './BasicInfo'
+import ProjectDetails from './ProjectDetails'
 
 const resource: ResourceModel = {
   _id: 'resource-object-id',
@@ -34,6 +35,7 @@ function renderBasicInfoRoute() {
     path: '/resources/:resourceId',
     initialEntries: ['/resources/42/basic-info'],
     loader: resourceLoader,
+    action: resourceAction,
     ErrorBoundary: ResourceError,
     children: [{ path: 'basic-info', Component: BasicInfo, action: basicInfoAction }],
   })
@@ -248,6 +250,70 @@ describe('BasicInfo', () => {
       ).toBeInTheDocument()
     })
 
+    it('keeps buffered edits after navigating to Project Details and back', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(completedResource)))
+      const user = userEvent.setup()
+
+      renderWithRouter(<Resource />, {
+        path: '/resources/:resourceId',
+        initialEntries: ['/resources/42/basic-info'],
+        loader: resourceLoader,
+        children: [
+          { path: 'basic-info', Component: BasicInfo, action: basicInfoAction },
+          { path: 'project-details', Component: ProjectDetails },
+        ],
+      })
+
+      const owner = await screen.findByLabelText('Owner')
+      await user.clear(owner)
+      await user.type(owner, 'Grace Hopper')
+      await user.click(screen.getByRole('link', { name: 'Edit project details' }))
+      await screen.findByLabelText('Project name')
+      await user.click(screen.getByRole('link', { name: 'Edit basic info' }))
+
+      expect(await screen.findByLabelText('Owner')).toHaveValue('Grace Hopper')
+    })
+
+    it('submits buffered changes from both modules in one full update', async () => {
+      const fetchMock = vi.fn(() => Promise.resolve(jsonResponse(completedResource)))
+      vi.stubGlobal('fetch', fetchMock)
+      const user = userEvent.setup()
+
+      renderWithRouter(<Resource />, {
+        path: '/resources/:resourceId',
+        initialEntries: ['/resources/42/basic-info'],
+        loader: resourceLoader,
+        action: resourceAction,
+        children: [
+          { path: 'basic-info', Component: BasicInfo },
+          { path: 'project-details', Component: ProjectDetails },
+        ],
+      })
+
+      const owner = await screen.findByLabelText('Owner')
+      await user.clear(owner)
+      await user.type(owner, 'Grace Hopper')
+      await user.click(screen.getByRole('link', { name: 'Edit project details' }))
+      await screen.findByLabelText('Project name')
+      await user.click(screen.getByRole('checkbox', { name: 'Data Eng' }))
+      await user.click(screen.getByRole('button', { name: 'Submit changes' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith('/api/resources/42', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Project Atlas',
+            basicInfo: { ...completedResource.basicInfo, owner: 'Grace Hopper' },
+            projectDetails: {
+              ...completedResource.projectDetails,
+              options: ['FE devs', 'Designer', 'Data Eng'],
+            },
+          }),
+        })
+      })
+    })
+
     it('persists buffered edits through a single full PUT update on submit', async () => {
       const updatedResource: ResourceModel = {
         ...completedResource,
@@ -294,6 +360,9 @@ describe('BasicInfo', () => {
         (call) => (call[1] as RequestInit | undefined)?.method === 'PATCH',
       )
       expect(patchCalls).toHaveLength(0)
+      expect(
+        screen.queryByText('You have unsaved local changes - they are lost on refresh.'),
+      ).not.toBeInTheDocument()
     })
 
     it('shows the API validation message when the full update returns 400', async () => {
