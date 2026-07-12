@@ -29,6 +29,9 @@ export default defineConfig(({ mode }) => {
         environment: 'jsdom',
         include: ['src/**/*.test.{ts,tsx}'],
         setupFiles: ['./src/test/setup.ts'],
+        // Tests stub the global fetch implementation for route loaders and actions.
+        // Serial files prevent one teardown from removing another file's mock.
+        fileParallelism: false,
       }
     }, {
       extends: true,

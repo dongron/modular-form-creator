@@ -1,23 +1,18 @@
-import styled from 'styled-components'
+import { useNavigate } from 'react-router-dom'
+import { Button } from '../design-system'
+import { PageShell, Heading } from './components/PageLayout'
 
 function Home() {
+  const navigate = useNavigate()
+
   return (
-    <AppShell>
-      <Message>Good luck!</Message>
-    </AppShell>
+    <PageShell $centered $gap="lg">
+      <Heading>Modular Form Creator</Heading>
+      <Button type="button" onClick={() => navigate('/resources')}>
+        View Resources
+      </Button>
+    </PageShell>
   )
 }
-
-const AppShell = styled.div`
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`
-
-const Message = styled.h1`
-  font-size: 2.5rem;
-  color: ${({ theme }) => theme.colors.inkStrong};
-`
 
 export default Home

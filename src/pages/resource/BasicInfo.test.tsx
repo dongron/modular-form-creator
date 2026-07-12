@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderWithRouter } from '../../test/render'
 import type { Resource as ResourceModel } from '../../api/resources'
@@ -128,7 +128,9 @@ describe('BasicInfo', () => {
     await user.selectOptions(screen.getByLabelText('Priority'), 'high')
     await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
-    expect(await screen.findByLabelText('Owner')).toHaveValue('Grace Hopper (saved)')
+    await waitFor(() =>
+      expect(screen.getByLabelText('Owner')).toHaveValue('Grace Hopper (saved)'),
+    )
     expect(screen.getByLabelText('Priority')).toHaveValue('high')
     expect(fetchMock).toHaveBeenCalledWith('/api/resources/42/basic-info', {
       method: 'PATCH',

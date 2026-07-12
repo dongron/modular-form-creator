@@ -55,7 +55,7 @@ describe('ResourceDetails', () => {
     const fetchMock = renderResourceDetails(resource)
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Resource “Project Atlas”' }),
+      await screen.findByRole('heading', { level: 1, name: 'Project Atlas' }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('heading', { level: 2, name: 'Basic info' }),

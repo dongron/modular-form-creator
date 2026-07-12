@@ -65,7 +65,7 @@ describe('ProjectDetails', () => {
 
     expect(await screen.findByLabelText('Project name')).toHaveValue('Atlas Platform')
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Resource “Project Atlas”' }),
+      screen.getByRole('heading', { level: 1, name: 'Project Atlas' }),
     ).toBeInTheDocument()
     expect(screen.getByLabelText('Project name')).toBeEnabled()
     expect(screen.getByLabelText('Budget')).toHaveValue('100000')

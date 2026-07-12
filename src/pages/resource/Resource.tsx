@@ -1,7 +1,20 @@
 import styled from 'styled-components'
-import { NavLink, Outlet, useLoaderData, type LoaderFunctionArgs } from 'react-router-dom'
+import {
+  NavLink,
+  Outlet,
+  useLoaderData,
+  useNavigate,
+  type LoaderFunctionArgs,
+} from 'react-router-dom'
 import { fetchResource } from '../../api/resources'
-import { CONTENT_WIDTH, PageShell, Heading } from '../components/PageLayout'
+import { Button } from '../../design-system'
+import {
+  CONTENT_WIDTH,
+  PageShell,
+  PageHeader,
+  HeaderCopy,
+  Heading,
+} from '../components/PageLayout'
 
 export async function loader({ params }: LoaderFunctionArgs) {
   if (!params.resourceId) {
@@ -13,10 +26,19 @@ export async function loader({ params }: LoaderFunctionArgs) {
 
 function Resource() {
   const resource = useLoaderData<typeof loader>()
+  const navigate = useNavigate()
 
   return (
     <PageShell $gap="lg">
-      <Heading>Resource “{resource.name}”</Heading>
+      <PageHeader>
+        <Button type="button" variant="secondary" onClick={() => navigate('/resources')}>
+          Back
+        </Button>
+        <HeaderCopy>
+          <Heading>{resource.name}</Heading>
+        </HeaderCopy>
+        <div></div>
+      </PageHeader>
       <Tabs>
         <Tab to="." end>
           Overview

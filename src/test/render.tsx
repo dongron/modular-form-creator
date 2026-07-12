@@ -62,3 +62,18 @@ export function renderWithRouter(
     </ThemeWrapper>,
   )
 }
+
+// Renders multiple sibling route stubs so tests can verify real
+// useNavigate()/Link navigation between routes (not just href assertions).
+export function renderWithRoutes(
+  routes: StubRouteObject[],
+  { initialEntries }: { initialEntries: string[] },
+) {
+  const Stub = createRoutesStub(routes)
+
+  return render(
+    <ThemeWrapper>
+      <Stub initialEntries={initialEntries} />
+    </ThemeWrapper>,
+  )
+}
