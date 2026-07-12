@@ -51,4 +51,7 @@ export const Heading = styled.h1`
 export const Lead = styled.p`
   font-size: 1.125rem;
   color: ${({ theme }) => theme.colors.inkMuted};
+  justify-content: center;
+  text-align: center;
+  padding: ${({ theme }) => theme.spacing.sm};
 `
