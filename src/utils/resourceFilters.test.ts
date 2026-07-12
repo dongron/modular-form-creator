@@ -43,6 +43,12 @@ describe('parseResourceFilters', () => {
     expect(result.sortOrder).toBeUndefined()
   })
 
+  it.each(['0', '-1', 'abc', '1.5'])('falls back to page 1 for page=%s', (page) => {
+    const result = parseResourceFilters(new URLSearchParams({ page }))
+
+    expect(result.page).toBe(1)
+  })
+
   it('accepts each allowed page size', () => {
     for (const size of [10, 25, 50, 100]) {
       const params = new URLSearchParams({ pageSize: String(size) })

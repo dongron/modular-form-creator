@@ -24,11 +24,12 @@ export const PAGE_SIZE_OPTIONS: SelectOption[] = PAGE_SIZES.map((size) => ({
 export function parseResourceFilters(searchParams: URLSearchParams): ResourceFilters {
   const status = searchParams.get('status')
   const sortOrder = searchParams.get('sortOrder')
+  const page = Number(searchParams.get('page') ?? '1')
   const pageSize = Number(searchParams.get('pageSize'))
   const name = searchParams.get('name')
 
   return {
-    page: Number(searchParams.get('page') ?? '1'),
+    page: Number.isInteger(page) && page > 0 ? page : 1,
     pageSize: PAGE_SIZES.includes(pageSize) ? pageSize : DEFAULT_PAGE_SIZE,
     name: name ?? undefined,
     status: status === 'draft' || status === 'completed' ? status : undefined,
