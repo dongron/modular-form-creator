@@ -11,6 +11,8 @@ import {
 } from '../../api/resources'
 import { Button, Input, Select } from '../../design-system'
 import { CONTENT_WIDTH, FieldWrapper, FormShell, Lead } from '../components/PageLayout'
+import { PRIORITY_OPTIONS } from '../../utils/basicInfoOptions'
+import { getSubmitLabel } from '../../utils/submitLabel'
 
 export type BasicInfoActionData = { ok: boolean; error: string | null }
 
@@ -44,13 +46,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   return { ok: true as const, error: null }
 }
-
-const priorityOptions = [
-  { value: '', label: 'Select priority' },
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-]
 
 function BasicInfo() {
   const resource = useOutletContext<Resource>()
@@ -117,7 +112,7 @@ function BasicInfo() {
               name="priority"
               label="Priority"
               defaultValue={basicInfo.priority}
-              options={priorityOptions}
+              options={PRIORITY_OPTIONS}
               required
               state={fieldState}
             />
@@ -138,7 +133,7 @@ function BasicInfo() {
               variant="primary"
               state={isSubmitting ? 'disabled' : 'normal'}
             >
-              {isSubmitting ? 'Saving…' : isCompleted ? 'Submit changes' : 'Save changes'}
+              {getSubmitLabel(isSubmitting, isCompleted)}
             </Button>
           </FieldWrapper>
         </FormFields>

@@ -13,6 +13,7 @@ import { Button, CheckboxGroup, Input, Select } from '../../design-system'
 import { CONTENT_WIDTH, FieldWrapper, FormShell, Lead } from '../components/PageLayout'
 import { isBasicInfoComplete } from '../../utils/resourceCompletion'
 import { CATEGORY_OPTIONS, OPTION_CHOICES } from '../../utils/projectDetailsOptions'
+import { getSubmitLabel } from '../../utils/submitLabel'
 
 export type ProjectDetailsActionData = { ok: boolean; error: string | null }
 
@@ -132,7 +133,7 @@ function ProjectDetails() {
               variant="primary"
               state={isLocked || isSubmitting ? 'disabled' : 'normal'}
             >
-              {isSubmitting ? 'Saving…' : isCompleted ? 'Submit changes' : 'Save changes'}
+              {getSubmitLabel(isSubmitting, isCompleted)}
             </Button>
           </FieldWrapper>
         </FormFields>

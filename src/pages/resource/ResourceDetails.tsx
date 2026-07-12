@@ -1,14 +1,10 @@
 import { useOutletContext } from 'react-router-dom'
 import styled from 'styled-components'
 import type { Resource } from '../../api/resources'
-import { Badge, type BadgeVariant } from '../../design-system'
+import { Badge } from '../../design-system'
 import ResourceSummaryCards from '../components/ResourceSummaryCards'
 import { CONTENT_WIDTH } from '../components/PageLayout'
-
-const statusVariant: Record<string, BadgeVariant> = {
-  draft: 'neutral',
-  completed: 'success',
-}
+import { getStatusBadgeVariant } from '../../utils/statusBadge'
 
 function ResourceDetails() {
   const resource = useOutletContext<Resource>()
@@ -17,9 +13,7 @@ function ResourceDetails() {
     <>
       <SummaryStatus>
         <StatusLabel>Resource status</StatusLabel>
-        <Badge variant={statusVariant[resource.status] ?? 'neutral'}>
-          {resource.status}
-        </Badge>
+        <Badge variant={getStatusBadgeVariant(resource.status)}>{resource.status}</Badge>
       </SummaryStatus>
       <ResourceSummaryCards resource={resource} />
     </>

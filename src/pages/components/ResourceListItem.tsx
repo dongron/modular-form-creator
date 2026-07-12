@@ -1,13 +1,9 @@
 import { Link, useFetcher } from 'react-router-dom'
 import styled from 'styled-components'
-import { Badge, Card, IconButton, type BadgeVariant } from '../../design-system'
+import { Badge, Card, IconButton } from '../../design-system'
 import { type Resource } from '../../api/resources'
 import { formatCreatedAt } from '../../utils/date'
-
-const statusVariant: Record<string, BadgeVariant> = {
-  draft: 'neutral',
-  completed: 'success',
-}
+import { getStatusBadgeVariant } from '../../utils/statusBadge'
 
 function ResourceListItem({ resource }: { resource: Resource }) {
   const fetcher = useFetcher()
@@ -23,7 +19,7 @@ function ResourceListItem({ resource }: { resource: Resource }) {
               {formatCreatedAt(resource.createdAt)}
             </ResourceDate>
           </ResourceLink>
-          <Badge variant={statusVariant[resource.status] ?? 'neutral'}>
+          <Badge variant={getStatusBadgeVariant(resource.status)}>
             {resource.status}
           </Badge>
           <fetcher.Form method="post">

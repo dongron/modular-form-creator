@@ -10,14 +10,10 @@ import {
   isBasicInfoComplete,
   isProjectDetailsComplete,
 } from '../../utils/resourceCompletion'
-import { Badge, Button, type BadgeVariant } from '../../design-system'
+import { Badge, Button } from '../../design-system'
 import ResourceSummaryCards from '../components/ResourceSummaryCards'
 import { CONTENT_WIDTH } from '../components/PageLayout'
-
-const statusVariant: Record<string, BadgeVariant> = {
-  draft: 'neutral',
-  completed: 'success',
-}
+import { getStatusBadgeVariant } from '../../utils/statusBadge'
 
 export async function action({ request, params }: ActionFunctionArgs) {
   const formData = await request.formData()
@@ -50,9 +46,7 @@ function ResourceIndex() {
   return (
     <>
       <SummaryStatus>
-        <Badge variant={statusVariant[resource.status] ?? 'neutral'}>
-          {resource.status}
-        </Badge>
+        <Badge variant={getStatusBadgeVariant(resource.status)}>{resource.status}</Badge>
         <CompletionText>{completeCount} of 2 modules complete</CompletionText>
       </SummaryStatus>
       <ResourceSummaryCards resource={resource} />
